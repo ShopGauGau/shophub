@@ -1,68 +1,146 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import RoomCard from '../components/RoomCard';
 
-const HomePage = () => {
-  // 1. Dữ liệu 20 phòng
-  const roomsData = [
-    { id: 1, district: "Quận 7", title: "Phòng trọ cao cấp Q7", price: 3500000, bedrooms: 1, bathrooms: 1, area: 25, image: "https://picsum.photos/id/10/500/300" },
-    { id: 2, district: "Quận 7", title: "Căn hộ Studio Q7", price: 4500000, bedrooms: 1, bathrooms: 1, area: 30, image: "https://picsum.photos/id/11/500/300" },
-    { id: 3, district: "Quận 7", title: "Phòng trọ SV tiện nghi Q7", price: 2500000, bedrooms: 1, bathrooms: 1, area: 20, image: "https://picsum.photos/id/12/500/300" },
-    { id: 4, district: "Quận 7", title: "Nhà nguyên căn rộng Q7", price: 8000000, bedrooms: 2, bathrooms: 2, area: 60, image: "https://picsum.photos/id/13/500/300" },
-    { id: 5, district: "Quận 1", title: "Căn hộ Studio Q1 trung tâm", price: 7000000, bedrooms: 1, bathrooms: 1, area: 35, image: "https://picsum.photos/id/20/500/300" },
-    { id: 6, district: "Quận 1", title: "Phòng trọ cao cấp sang trọng", price: 6000000, bedrooms: 1, bathrooms: 1, area: 28, image: "https://picsum.photos/id/21/500/300" },
-    { id: 7, district: "Quận 1", title: "Chung cư mini hiện đại Q1", price: 9000000, bedrooms: 2, bathrooms: 1, area: 45, image: "https://picsum.photos/id/22/500/300" },
-    { id: 8, district: "Quận 1", title: "Phòng trọ giá tốt Quận 1", price: 4000000, bedrooms: 1, bathrooms: 1, area: 22, image: "https://picsum.photos/id/23/500/300" },
-    { id: 9, district: "Bình Thạnh", title: "Phòng trọ giá rẻ BT", price: 2800000, bedrooms: 1, bathrooms: 1, area: 20, image: "https://picsum.photos/id/30/500/300" },
-    { id: 10, district: "Bình Thạnh", title: "Căn hộ dịch vụ tiện nghi BT", price: 5000000, bedrooms: 1, bathrooms: 1, area: 32, image: "https://picsum.photos/id/31/500/300" },
-    { id: 11, district: "Bình Thạnh", title: "Phòng trọ ban công rộng BT", price: 3800000, bedrooms: 1, bathrooms: 1, area: 25, image: "https://picsum.photos/id/32/500/300" },
-    { id: 12, district: "Bình Thạnh", title: "Phòng trọ sân thượng thoáng", price: 4200000, bedrooms: 1, bathrooms: 1, area: 28, image: "https://picsum.photos/id/33/500/300" },
-    { id: 13, district: "Thủ Đức", title: "Nhà nguyên căn rộng TĐ", price: 12000000, bedrooms: 3, bathrooms: 2, area: 80, image: "https://picsum.photos/id/40/500/300" },
-    { id: 14, district: "Thủ Đức", title: "Phòng trọ sinh viên tiện giá rẻ TĐ", price: 2200000, bedrooms: 1, bathrooms: 1, area: 18, image: "https://picsum.photos/id/41/500/300" },
-    { id: 15, district: "Thủ Đức", title: "Kí túc xá hiện đại TĐ", price: 1500000, bedrooms: 1, bathrooms: 1, area: 15, image: "https://picsum.photos/id/42/500/300" },
-    { id: 16, district: "Thủ Đức", title: "Căn hộ Studio thoáng TĐ", price: 4000000, bedrooms: 1, bathrooms: 1, area: 30, image: "https://picsum.photos/id/43/500/300" },
-    { id: 17, district: "Quận 3", title: "Căn hộ mini Quận 3", price: 5500000, bedrooms: 1, bathrooms: 1, area: 30, image: "https://picsum.photos/id/50/500/300" },
-    { id: 18, district: "Quận 10", title: "Phòng trọ SV tiện lợi Q10", price: 2500000, bedrooms: 1, bathrooms: 1, area: 18, image: "https://picsum.photos/id/60/500/300" },
-    { id: 19, district: "Quận 2", title: "Căn hộ dịch vụ tiện nghi Q2", price: 9000000, bedrooms: 2, bathrooms: 1, area: 50, image: "https://picsum.photos/id/70/500/300" },
-    { id: 20, district: "Gò Vấp", title: "Phòng trọ giá mềm GV", price: 2600000, bedrooms: 1, bathrooms: 1, area: 20, image: "https://picsum.photos/id/80/500/300" },
-  ];
+// Hàm bỏ dấu tiếng Việt
+const removeAccents = (str) => {
+  return str.normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd').replace(/Đ/g, 'D');
+};
 
-  const districts = ["Tất cả", "Quận 7", "Quận 1", "Bình Thạnh", "Thủ Đức", "Quận 3", "Quận 10", "Quận 2", "Gò Vấp"];
+const HomePage = () => {
+  const [roomsData, setRoomsData] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showAllDistricts, setShowAllDistricts] = useState(false);
+  
+  // BIẾN MỚI: Lưu trạng thái lọc theo giá tiền
+  const [selectedPrice, setSelectedPrice] = useState("Tất cả");
+
+  useEffect(() => {
+    axios.get('http://127.0.0.1:8000/api/rooms')
+      .then(res => {
+        setRoomsData(res.data);
+      })
+      .catch(err => console.error("Lỗi rồi ní ơi:", err));
+  }, []);
+
+  const districts = [
+    "Tất cả", "Quận 1","Quận 2",  "Quận 3", "Quận 4", "Quận 5", 
+    "Quận 6", "Quận 7", "Quận 8", "Quận 10", "Quận 11", 
+    "Quận 12", "Bình Tân", "Bình Thạnh", "Gò Vấp", 
+    "Phú Nhuận", "Tân Bình", "Tân Phú", "TP. Thủ Đức", 
+    "Bình Chánh", "Cần Giờ", "Củ Chi", "Hóc Môn", "Nhà Bè"
+  ];
   const [selectedDistrict, setSelectedDistrict] = useState("Tất cả");
 
-  const filteredRooms = selectedDistrict === "Tất cả" 
-    ? roomsData 
-    : roomsData.filter(room => room.district === selectedDistrict);
+  // LOGIC LỌC TỔNG HỢP (QUẬN + TÊN + GIÁ TIỀN)
+  const filteredRooms = roomsData.filter(room => {
+    // 1. Lọc theo Quận
+    const matchDistrict = selectedDistrict === "Tất cả" || room.District === selectedDistrict;
+    
+    // 2. Lọc theo Từ khóa tìm kiếm
+    const roomTitleNoAccent = removeAccents(room.Title || "").toLowerCase();
+    const searchTermNoAccent = removeAccents(searchTerm).toLowerCase();
+    const matchSearch = roomTitleNoAccent.includes(searchTermNoAccent);
+
+    // 3. Lọc theo Giá tiền
+    let matchPrice = true;
+    const roomPrice = Number(room.Price) || 0; // Ép kiểu về số để so sánh
+
+    if (selectedPrice === "Dưới 3 triệu") {
+      matchPrice = roomPrice < 3000000;
+    } else if (selectedPrice === "3 - 5 triệu") {
+      matchPrice = roomPrice >= 3000000 && roomPrice <= 5000000;
+    } else if (selectedPrice === "5 - 7 triệu") {
+      matchPrice = roomPrice > 5000000 && roomPrice <= 7000000;
+    } else if (selectedPrice === "Trên 7 triệu") {
+      matchPrice = roomPrice > 7000000;
+    }
+    
+    // Phải thỏa mãn cả 3 điều kiện mới được hiện ra
+    return matchDistrict && matchSearch && matchPrice;
+  });
+
+  const visibleDistricts = showAllDistricts ? districts : districts.slice(0, 5);
 
   return (
     <div className="container mx-auto px-4 py-8 bg-gray-50 min-h-screen">
-      {/* Banner chuyên nghiệp */}
       <div className="bg-gradient-to-r from-teal-700 to-blue-600 rounded-3xl p-10 text-white mb-8 shadow-xl">
         <h1 className="text-4xl font-bold mb-2">Tìm phòng trọ ưng ý dễ dàng</h1>
         <p className="opacity-90 mb-6">Hàng ngàn căn hộ và phòng trọ đang chờ đón bạn!</p>
+        
+        {/* KHU VỰC TÌM KIẾM & LỌC GIÁ */}
+        <div className="flex flex-col md:flex-row gap-4 max-w-4xl">
+          {/* Ô tìm kiếm */}
+          <div className="relative flex-1">
+            <input 
+              type="text" 
+              placeholder="Nhập tên phòng, ví dụ: Studio, Bình Thạnh..." 
+              className="w-full py-3 px-5 rounded-full text-gray-800 shadow-md focus:outline-none focus:ring-2 focus:ring-teal-400"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <button className="absolute right-2 top-2 bg-teal-600 hover:bg-teal-700 text-white p-1.5 px-4 rounded-full transition-colors">
+              Tìm
+            </button>
+          </div>
+
+          {/* Ô chọn giá (MỚI) */}
+          <div className="w-full md:w-64">
+            <select 
+              className="w-full py-3 px-5 rounded-full text-gray-800 shadow-md focus:outline-none focus:ring-2 focus:ring-teal-400 cursor-pointer bg-white"
+              value={selectedPrice}
+              onChange={(e) => setSelectedPrice(e.target.value)}
+            >
+              <option value="Tất cả">Mức giá: Tất cả</option>
+              <option value="Dưới 3 triệu">Dưới 3 triệu</option>
+              <option value="3 - 5 triệu">Từ 3 - 5 triệu</option>
+              <option value="5 - 7 triệu">Từ 5 - 7 triệu</option>
+              <option value="Trên 7 triệu">Trên 7 triệu</option>
+            </select>
+          </div>
+        </div>
       </div>
 
-      {/* Grid chia 2 cột: Danh sách (3/4) - Sidebar (1/4) */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        
-        {/* Cột trái: Danh sách phòng */}
         <div className="lg:col-span-3">
           <h2 className="text-2xl font-bold mb-6 italic">Tổng cộng {filteredRooms.length} phòng trọ...</h2>
           
-          <div className="flex flex-wrap gap-2 mb-6">
-            {districts.map(d => (
+          {/* Nút bấm các Quận */}
+          <div className="flex flex-wrap gap-2 mb-6 items-center">
+            {visibleDistricts.map(d => (
               <button key={d} onClick={() => setSelectedDistrict(d)}
-                className={`px-4 py-1 rounded-full border ${selectedDistrict === d ? "bg-teal-800 text-white" : "bg-white text-gray-700"}`}>
+                className={`px-4 py-1 rounded-full border transition-all ${selectedDistrict === d ? "bg-teal-800 text-white shadow-md" : "bg-white text-gray-700 hover:bg-gray-100"}`}>
                 {d}
               </button>
             ))}
+            
+            {districts.length > 5 && (
+              <button 
+                onClick={() => setShowAllDistricts(!showAllDistricts)}
+                className="px-4 py-1 rounded-full border border-teal-300 bg-teal-50 text-teal-700 hover:bg-teal-100 font-medium transition-all"
+              >
+                {showAllDistricts ? "Thu gọn ⬆️" : "Xem thêm ⬇️"}
+              </button>
+            )}
           </div>
 
+          {/* Danh sách phòng */}
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filteredRooms.map((room) => <RoomCard key={room.id} id={room.id} {...room} />)}
+            {filteredRooms.map((room) => (
+              <RoomCard 
+                key={room.RoomID} 
+                id={room.RoomID} 
+                Title={room.Title} 
+                Price={room.Price} 
+                Area={room.Area} 
+                ImageURL={room.ImageURL} 
+              />
+            ))}
           </div>
         </div>
 
-        {/* Cột phải: Sidebar Features */}
         <div className="lg:col-span-1">
           <div className="bg-blue-50 border-2 border-blue-200 p-6 rounded-2xl shadow-sm">
             <h3 className="text-xl font-bold mb-4 text-gray-800">Features</h3>
@@ -76,4 +154,5 @@ const HomePage = () => {
     </div>
   );
 };
+
 export default HomePage;
