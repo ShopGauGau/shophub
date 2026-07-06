@@ -5,8 +5,11 @@ from pydantic import BaseModel
 from database import engine  
 from auth import router as auth_router 
 from rooms import router as rooms_router
-from datetime import datetime # Dùng để xử lý ngày giờ
+from datetime import datetime 
 from favorites import router as favorites_router
+
+# CHỖ MỚI NÈ: Import cái vnpay.py mà ní vừa tạo vô đây
+from vnpay import router as vnpay_router 
 
 app = FastAPI()
 
@@ -21,6 +24,9 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(rooms_router)
 app.include_router(favorites_router)
+
+# CHỖ MỚI NÈ: Đăng ký router cho VNPAY hoạt động
+app.include_router(vnpay_router)
 
 # ==========================================
 # PHẦN ROOMS: Route lấy danh sách phòng
@@ -134,13 +140,10 @@ def edit_room(id: int, room: RoomData, role: str = Header(None)):
 # ==========================================
 # PHẦN BOOKINGS (ĐẶT PHÒNG)
 # ==========================================
-
-# ---> TUI ĐÃ SỬA KHÚC NÀY NÈ NÍ <---
 @app.get("/api/bookings")
 def get_all_bookings():
     try:
         with engine.connect() as conn:
-            # Dùng JOIN để móc thêm cái Title từ bảng Rooms ra
             query = text("""
                 SELECT b.*, r.Title as RoomTitle 
                 FROM Bookings b
@@ -166,21 +169,16 @@ class BookingData(BaseModel):
     FullName: str
     StartTime: str
     EndTime: str
-    
+    PaymentMethod: str = "Tiền mặt" 
+
 @app.post("/api/bookings/add")
 def create_booking(data: BookingData):
     try:
-        # Ép kiểu dữ liệu thời gian cho chuẩn
         start_time = datetime.fromisoformat(data.StartTime)
         end_time = datetime.fromisoformat(data.EndTime)
-        
-        # Lấy giờ hiện tại chèn thẳng vào BookingDate để SQL khỏi báo lỗi
         current_time = datetime.now() 
         
         with engine.connect() as conn:
-            # ==========================================
-            # BƯỚC 1: KIỂM TRA TRÙNG LỊCH TRƯỚC KHI LƯU
-            # ==========================================
             check_query = text("""
                 SELECT COUNT(*) FROM Bookings 
                 WHERE RoomID = :RoomID 
@@ -201,27 +199,33 @@ def create_booking(data: BookingData):
                     "message": f"Phòng này đã có người xí chỗ trong khoảng thời gian đó rồi Thiên ơi, chọn ngày khác nha!"
                 }
 
-            # ==========================================
-            # BƯỚC 2: TIẾN HÀNH LƯU
-            # ==========================================
             query = text("""
-                INSERT INTO Bookings (RoomID, UserID, FullName, BookingDate, StartTime, EndTime, Status) 
-                VALUES (:RoomID, :UserID, :FullName, :BookingDate, :StartTime, :EndTime, 'Chờ xác nhận')
+                INSERT INTO Bookings (RoomID, UserID, FullName, BookingDate, StartTime, EndTime, Status, PaymentMethod, PaymentStatus) 
+                VALUES (:RoomID, :UserID, :FullName, :BookingDate, :StartTime, :EndTime, N'Chờ xác nhận', :PaymentMethod, N'Chưa thanh toán')
             """)
             
-            conn.execute(query, {
+            # CHÚ Ý: Lấy lại BookingID vừa chèn bằng cách dùng OUTPUT inserted.BookingID 
+            # (Phần này tui vừa độ thêm để lấy ID gửi sang VNPAY)
+            insert_query = text("""
+                INSERT INTO Bookings (RoomID, UserID, FullName, BookingDate, StartTime, EndTime, Status, PaymentMethod, PaymentStatus) 
+                OUTPUT inserted.BookingID
+                VALUES (:RoomID, :UserID, :FullName, :BookingDate, :StartTime, :EndTime, N'Chờ xác nhận', :PaymentMethod, N'Chưa thanh toán')
+            """)
+            
+            new_booking_id = conn.execute(insert_query, {
                 "RoomID": data.RoomID,
                 "UserID": data.UserID,
                 "FullName": data.FullName,
                 "BookingDate": current_time,  
                 "StartTime": start_time,
-                "EndTime": end_time
-            })
+                "EndTime": end_time,
+                "PaymentMethod": data.PaymentMethod 
+            }).scalar()
+            
             conn.commit()
             
-        return {"status": "success", "message": "Đặt phòng thành công rực rỡ!"}
+        return {"status": "success", "message": "Đặt phòng thành công rực rỡ!", "booking_id": new_booking_id}
     except Exception as e:
-        # In lỗi ra Terminal to rõ ràng
         print("=========================================")
         print("LỖI DATABASE KHI ĐẶT PHÒNG:")
         print(str(e))
