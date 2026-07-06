@@ -13,13 +13,16 @@ class UserAuth(BaseModel):
 @router.post("/api/login")
 async def login(user: UserAuth):
     with engine.connect() as conn:
-        query = text("SELECT Password, RoleID FROM Users WHERE Username = :u")
+        # SỬA CHỖ NÀY: Thêm chữ UserID vô câu lệnh SELECT
+        query = text("SELECT UserID, Password, RoleID FROM Users WHERE Username = :u")
         result = conn.execute(query, {"u": user.username}).fetchone()
         
         if result:
-            stored_password, role_id = result
+            # SỬA CHỖ NÀY: Hứng thêm cái user_id vô biến
+            user_id, stored_password, role_id = result
             if user.password == stored_password:
-                return {"message": "Đăng nhập thành công!", "role": role_id}
+                # SỬA CHỖ NÀY: Quăng cái UserID về cho thằng Frontend nó xài!
+                return {"message": "Đăng nhập thành công!", "role": role_id, "UserID": user_id}
         
         return {"message": "Sai tên đăng nhập hoặc mật khẩu!"}
 

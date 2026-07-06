@@ -6,8 +6,10 @@ import ContactPage from './pages/ContactPage';
 import RoomDetailsPage from './pages/RoomDetailsPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import AdminPage from './pages/AdminPage'; // Tui thêm dòng import AdminPage cho ní nè
+import AdminPage from './pages/AdminPage';
+import AdminBookingsPage from './pages/AdminBookingsPage'; 
 import Footer from './components/Footer';
+import FavoritesPage from './pages/FavoritesPage'; // Đã có sẵn nè
 
 function App() {
   const [role, setRole] = useState(null);
@@ -41,18 +43,24 @@ function App() {
 
         {role ? (
           <div className="flex items-center gap-4">
-            <span className="font-semibold text-gray-700">Chào, {username}!</span>
+            {/* NÚT PHÒNG ĐÃ LƯU TUI MỚI THÊM VÔ NÈ NÍ */}
+            <Link to="/favorites" className="text-red-500 font-bold hover:text-red-600 hover:underline px-2 flex items-center gap-1">
+              ❤️ Phòng đã lưu
+            </Link>
+
+            <span className="font-semibold text-gray-700 border-l border-gray-300 pl-4">Chào, {username}!</span>
             
-            {/* CÁI NÚT VÀO TRANG ADMIN TUI LÀM SẴN Ở ĐÂY NÈ */}
+            {/* MENU CHO ADMIN */}
             {role === "1" && (
-              <Link to="/admin" className="text-teal-600 font-bold hover:underline px-2">
-                Trang Quản Trị
-              </Link>
+              <>
+                <Link to="/admin" className="text-teal-600 font-bold hover:underline px-2">Quản lý phòng</Link>
+                <Link to="/admin-bookings" className="text-orange-600 font-bold hover:underline px-2">Đơn đặt</Link>
+              </>
             )}
 
             <button 
               onClick={handleLogout} 
-              className="bg-red-500 text-white px-5 py-2 rounded-lg font-bold hover:bg-red-600 transition"
+              className="bg-red-500 text-white px-5 py-2 rounded-lg font-bold hover:bg-red-600 transition ml-2"
             >
               Đăng xuất
             </button>
@@ -73,8 +81,12 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           
-          {/* Tui đăng ký cái route trang Admin luôn rồi nè */}
+          {/* CÁC ROUTE CỦA ADMIN */}
           <Route path="/admin" element={<AdminPage />} /> 
+          <Route path="/admin-bookings" element={<AdminBookingsPage />} /> 
+          
+          {/* ROUTE CHO TRANG YÊU THÍCH TUI MỚI GẮN */}
+          <Route path="/favorites" element={<FavoritesPage />} /> 
         </Routes>
       </div>
 

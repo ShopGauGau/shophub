@@ -1,10 +1,12 @@
-from fastapi import FastAPI, Header, HTTPException # Thêm Header và HTTPException vô nha
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from pydantic import BaseModel # Thêm thư viện này để nhận dữ liệu phòng gửi lên nè ní
-from database import engine  # Lấy engine từ file database.py
-from auth import router as auth_router # Import router từ auth.py
+from pydantic import BaseModel
+from database import engine  
+from auth import router as auth_router 
 from rooms import router as rooms_router
+from datetime import datetime # Dùng để xử lý ngày giờ
+from favorites import router as favorites_router
 
 app = FastAPI()
 
@@ -15,12 +17,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ĐĂNG KÝ ROUTER AUTH (Cực kỳ quan trọng để hết lỗi 404)
+# ĐĂNG KÝ ROUTER
 app.include_router(auth_router)
-# Tui đã xóa bớt 1 dòng auth bị dư ở đây nha ní
 app.include_router(rooms_router)
+app.include_router(favorites_router)
 
-# Route lấy danh sách phòng
+# ==========================================
+# PHẦN ROOMS: Route lấy danh sách phòng
+# ==========================================
 @app.get("/api/rooms")
 def get_rooms():
     try:
@@ -36,7 +40,6 @@ def get_rooms():
     except Exception as e:
         return {"loi_ket_noi_la": str(e)}
 
-# Route lấy chi tiết 1 phòng theo ID
 @app.get("/api/rooms/{id}")
 def get_room_details(id: int):
     try:
@@ -50,35 +53,29 @@ def get_room_details(id: int):
         return {"error": str(e)}
 
 # ==========================================
-# PHẦN ADMIN: Route Xóa phòng
+# PHẦN ADMIN: Rooms
 # ==========================================
 @app.delete("/api/rooms/delete/{id}")
 def delete_room(id: int, role: str = Header(None)):
-    # Block ngay nếu không phải Admin (Role = "1")
     if role != "1":
         raise HTTPException(status_code=403, detail="Cảnh báo: Chỉ Admin mới có quyền xóa phòng nha ní!")
         
     try:
         with engine.connect() as conn:
-            # Thực thi lệnh xóa
             conn.execute(text("DELETE FROM Rooms WHERE RoomID = :id"), {"id": id})
             conn.commit()
         return {"message": "Đã xóa phòng thành công khỏi hệ thống!"}
     except Exception as e:
         return {"error": f"Lỗi rùi ní ơi: {str(e)}"}
 
-# ==========================================
-# PHẦN ADMIN: Route Thêm phòng mới
-# ==========================================
-# Khai báo cấu trúc dữ liệu phòng gửi lên (Nhiều trường hơn)
 class RoomData(BaseModel):
     Title: str
     Price: float
-    Area: float = 0.0             # Diện tích
-    District: str = ""            # Quận/Huyện
-    Address: str = ""             # Địa chỉ chi tiết
-    ImageURL: str = ""            # Link hình ảnh
-    Description: str = ""         # Mô tả
+    Area: float = 0.0            
+    District: str = ""           
+    Address: str = ""            
+    ImageURL: str = ""           
+    Description: str = ""        
 
 @app.post("/api/rooms/add")
 def add_room(room: RoomData, role: str = Header(None)):
@@ -87,13 +84,10 @@ def add_room(room: RoomData, role: str = Header(None)):
         
     try:
         with engine.connect() as conn:
-            # Câu lệnh Insert vô Database cập nhật thêm các cột mới
             query = text("""
                 INSERT INTO Rooms (Title, Price, Area, District, Address, ImageURL, Description) 
                 VALUES (:Title, :Price, :Area, :District, :Address, :ImageURL, :Description)
             """)
-            
-            # Truyền dữ liệu vô
             conn.execute(query, {
                 "Title": room.Title, 
                 "Price": room.Price, 
@@ -107,9 +101,7 @@ def add_room(room: RoomData, role: str = Header(None)):
         return {"message": "Đã thêm phòng mới full thông tin thành công rực rỡ!"}
     except Exception as e:
         return {"error": f"Lỗi rùi ní ơi: {str(e)}"}
-    # ==========================================
-# PHẦN ADMIN: Route Sửa phòng
-# ==========================================
+
 @app.put("/api/rooms/edit/{id}")
 def edit_room(id: int, room: RoomData, role: str = Header(None)):
     if role != "1":
@@ -117,7 +109,6 @@ def edit_room(id: int, room: RoomData, role: str = Header(None)):
         
     try:
         with engine.connect() as conn:
-            # Câu lệnh UPDATE cập nhật lại dữ liệu
             query = text("""
                 UPDATE Rooms 
                 SET Title = :Title, Price = :Price, Area = :Area, 
@@ -125,7 +116,6 @@ def edit_room(id: int, room: RoomData, role: str = Header(None)):
                     ImageURL = :ImageURL, Description = :Description
                 WHERE RoomID = :id
             """)
-            
             conn.execute(query, {
                 "Title": room.Title, 
                 "Price": room.Price, 
@@ -140,3 +130,100 @@ def edit_room(id: int, room: RoomData, role: str = Header(None)):
         return {"message": "Đã cập nhật phòng thành công!"}
     except Exception as e:
         return {"error": f"Lỗi rùi ní ơi: {str(e)}"}
+ 
+# ==========================================
+# PHẦN BOOKINGS (ĐẶT PHÒNG)
+# ==========================================
+
+# ---> TUI ĐÃ SỬA KHÚC NÀY NÈ NÍ <---
+@app.get("/api/bookings")
+def get_all_bookings():
+    try:
+        with engine.connect() as conn:
+            # Dùng JOIN để móc thêm cái Title từ bảng Rooms ra
+            query = text("""
+                SELECT b.*, r.Title as RoomTitle 
+                FROM Bookings b
+                JOIN Rooms r ON b.RoomID = r.RoomID
+                ORDER BY b.BookingID DESC
+            """)
+            result = conn.execute(query) 
+            return [dict(row._mapping) for row in result]
+    except Exception as e:
+        return {"error": f"Lỗi lấy đơn đặt: {str(e)}"}
+      
+@app.put("/api/bookings/update/{id}")
+def update_booking_status(id: int, data: dict):
+    new_status = data.get("status")
+    with engine.connect() as conn:
+        conn.execute(text("UPDATE Bookings SET Status = :status WHERE BookingID = :id"), {"status": new_status, "id": id})
+        conn.commit()
+    return {"message": "Cập nhật thành công!"}
+
+class BookingData(BaseModel):
+    RoomID: int
+    UserID: int
+    FullName: str
+    StartTime: str
+    EndTime: str
+    
+@app.post("/api/bookings/add")
+def create_booking(data: BookingData):
+    try:
+        # Ép kiểu dữ liệu thời gian cho chuẩn
+        start_time = datetime.fromisoformat(data.StartTime)
+        end_time = datetime.fromisoformat(data.EndTime)
+        
+        # Lấy giờ hiện tại chèn thẳng vào BookingDate để SQL khỏi báo lỗi
+        current_time = datetime.now() 
+        
+        with engine.connect() as conn:
+            # ==========================================
+            # BƯỚC 1: KIỂM TRA TRÙNG LỊCH TRƯỚC KHI LƯU
+            # ==========================================
+            check_query = text("""
+                SELECT COUNT(*) FROM Bookings 
+                WHERE RoomID = :RoomID 
+                  AND Status IN (N'Chờ xác nhận', N'Đã xác nhận') 
+                  AND StartTime < :NewEndTime 
+                  AND EndTime > :NewStartTime
+            """)
+            
+            overlap_count = conn.execute(check_query, {
+                "RoomID": data.RoomID,
+                "NewStartTime": start_time,
+                "NewEndTime": end_time
+            }).scalar()
+            
+            if overlap_count > 0:
+                return {
+                    "status": "error", 
+                    "message": f"Phòng này đã có người xí chỗ trong khoảng thời gian đó rồi Thiên ơi, chọn ngày khác nha!"
+                }
+
+            # ==========================================
+            # BƯỚC 2: TIẾN HÀNH LƯU
+            # ==========================================
+            query = text("""
+                INSERT INTO Bookings (RoomID, UserID, FullName, BookingDate, StartTime, EndTime, Status) 
+                VALUES (:RoomID, :UserID, :FullName, :BookingDate, :StartTime, :EndTime, 'Chờ xác nhận')
+            """)
+            
+            conn.execute(query, {
+                "RoomID": data.RoomID,
+                "UserID": data.UserID,
+                "FullName": data.FullName,
+                "BookingDate": current_time,  
+                "StartTime": start_time,
+                "EndTime": end_time
+            })
+            conn.commit()
+            
+        return {"status": "success", "message": "Đặt phòng thành công rực rỡ!"}
+    except Exception as e:
+        # In lỗi ra Terminal to rõ ràng
+        print("=========================================")
+        print("LỖI DATABASE KHI ĐẶT PHÒNG:")
+        print(str(e))
+        print("=========================================")
+        return {"status": "error", "message": str(e)}

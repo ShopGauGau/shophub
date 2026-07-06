@@ -8,22 +8,26 @@ const LoginPage = () => {
 
   const handleLogin = async () => {
     try {
-      const res = await axios.post('http://127.0.0.1:8000/api/login', { username, password });
-      
-      // Xóa dòng alert(res.data.message); ở đây đi nè
-      
-      if (res.data.role) {
-        localStorage.setItem("role", res.data.role);
-        localStorage.setItem("username", username);
-        window.location.href = "/"; // Vô thẳng luôn
-      } else {
-        // Nếu muốn báo lỗi thì báo ở đây nè, chứ đăng nhập thành công là không cần báo
-        alert(res.data.message); 
-      }
+        const res = await axios.post('http://127.0.0.1:8000/api/login', { username, password });
+        
+        if (res.data.role) {
+            localStorage.setItem("role", res.data.role);
+            localStorage.setItem("username", username);
+            
+            // THAY VÌ LƯU LẦM TẦM BẬY, NÍ PHẢI DÙNG DỮ LIỆU TỪ BACKEND TRẢ VỀ
+            // Ní check cái console.log(res.data) xem ID của nó nằm ở đâu
+            // Thường nó sẽ là res.data.UserID hoặc res.data.id
+            const realId = res.data.UserID || res.data.id; 
+            localStorage.setItem("userId", realId); 
+            
+            window.location.href = "/";
+        } else {
+            alert(res.data.message); 
+        }
     } catch (err) {
-      alert("Lỗi kết nối rồi ní ơi!");
+        alert("Lỗi kết nối rồi ní ơi!");
     }
-  };
+};
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
