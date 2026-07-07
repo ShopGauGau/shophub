@@ -8,7 +8,7 @@ from rooms import router as rooms_router
 from datetime import datetime 
 from favorites import router as favorites_router
 
-# CHỖ MỚI NÈ: Import cái vnpay.py mà ní vừa tạo vô đây
+# Import cái vnpay.py 
 from vnpay import router as vnpay_router 
 
 app = FastAPI()
@@ -25,7 +25,7 @@ app.include_router(auth_router)
 app.include_router(rooms_router)
 app.include_router(favorites_router)
 
-# CHỖ MỚI NÈ: Đăng ký router cho VNPAY hoạt động
+# Đăng ký router cho VNPAY hoạt động
 app.include_router(vnpay_router)
 
 # ==========================================
@@ -59,85 +59,6 @@ def get_room_details(id: int):
         return {"error": str(e)}
 
 # ==========================================
-# PHẦN ADMIN: Rooms
-# ==========================================
-@app.delete("/api/rooms/delete/{id}")
-def delete_room(id: int, role: str = Header(None)):
-    if role != "1":
-        raise HTTPException(status_code=403, detail="Cảnh báo: Chỉ Admin mới có quyền xóa phòng nha ní!")
-        
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("DELETE FROM Rooms WHERE RoomID = :id"), {"id": id})
-            conn.commit()
-        return {"message": "Đã xóa phòng thành công khỏi hệ thống!"}
-    except Exception as e:
-        return {"error": f"Lỗi rùi ní ơi: {str(e)}"}
-
-class RoomData(BaseModel):
-    Title: str
-    Price: float
-    Area: float = 0.0            
-    District: str = ""           
-    Address: str = ""            
-    ImageURL: str = ""           
-    Description: str = ""        
-
-@app.post("/api/rooms/add")
-def add_room(room: RoomData, role: str = Header(None)):
-    if role != "1":
-        raise HTTPException(status_code=403, detail="Cảnh báo: Chỉ Admin mới được thêm phòng!")
-        
-    try:
-        with engine.connect() as conn:
-            query = text("""
-                INSERT INTO Rooms (Title, Price, Area, District, Address, ImageURL, Description) 
-                VALUES (:Title, :Price, :Area, :District, :Address, :ImageURL, :Description)
-            """)
-            conn.execute(query, {
-                "Title": room.Title, 
-                "Price": room.Price, 
-                "Area": room.Area,
-                "District": room.District,
-                "Address": room.Address,
-                "ImageURL": room.ImageURL,
-                "Description": room.Description
-            })
-            conn.commit()
-        return {"message": "Đã thêm phòng mới full thông tin thành công rực rỡ!"}
-    except Exception as e:
-        return {"error": f"Lỗi rùi ní ơi: {str(e)}"}
-
-@app.put("/api/rooms/edit/{id}")
-def edit_room(id: int, room: RoomData, role: str = Header(None)):
-    if role != "1":
-        raise HTTPException(status_code=403, detail="Cảnh báo: Chỉ Admin mới được sửa phòng!")
-        
-    try:
-        with engine.connect() as conn:
-            query = text("""
-                UPDATE Rooms 
-                SET Title = :Title, Price = :Price, Area = :Area, 
-                    District = :District, Address = :Address, 
-                    ImageURL = :ImageURL, Description = :Description
-                WHERE RoomID = :id
-            """)
-            conn.execute(query, {
-                "Title": room.Title, 
-                "Price": room.Price, 
-                "Area": room.Area,
-                "District": room.District,
-                "Address": room.Address,
-                "ImageURL": room.ImageURL,
-                "Description": room.Description,
-                "id": id
-            })
-            conn.commit()
-        return {"message": "Đã cập nhật phòng thành công!"}
-    except Exception as e:
-        return {"error": f"Lỗi rùi ní ơi: {str(e)}"}
- 
-# ==========================================
 # PHẦN BOOKINGS (ĐẶT PHÒNG)
 # ==========================================
 @app.get("/api/bookings")
@@ -162,6 +83,19 @@ def update_booking_status(id: int, data: dict):
         conn.execute(text("UPDATE Bookings SET Status = :status WHERE BookingID = :id"), {"status": new_status, "id": id})
         conn.commit()
     return {"message": "Cập nhật thành công!"}
+
+@app.put("/api/bookings/payment-success/{booking_id}")
+def update_payment_success(booking_id: int):
+    try:
+        with engine.connect() as conn:
+            conn.execute(
+                text("UPDATE Bookings SET PaymentStatus = N'Đã thanh toán' WHERE BookingID = :id"), 
+                {"id": booking_id}
+            )
+            conn.commit()
+        return {"message": "Đã cập nhật tiền nong sòng phẳng!"}
+    except Exception as e:
+        return {"error": str(e)}
 
 class BookingData(BaseModel):
     RoomID: int
@@ -199,13 +133,7 @@ def create_booking(data: BookingData):
                     "message": f"Phòng này đã có người xí chỗ trong khoảng thời gian đó rồi Thiên ơi, chọn ngày khác nha!"
                 }
 
-            query = text("""
-                INSERT INTO Bookings (RoomID, UserID, FullName, BookingDate, StartTime, EndTime, Status, PaymentMethod, PaymentStatus) 
-                VALUES (:RoomID, :UserID, :FullName, :BookingDate, :StartTime, :EndTime, N'Chờ xác nhận', :PaymentMethod, N'Chưa thanh toán')
-            """)
-            
-            # CHÚ Ý: Lấy lại BookingID vừa chèn bằng cách dùng OUTPUT inserted.BookingID 
-            # (Phần này tui vừa độ thêm để lấy ID gửi sang VNPAY)
+            # Lấy lại BookingID vừa chèn bằng cách dùng OUTPUT inserted.BookingID 
             insert_query = text("""
                 INSERT INTO Bookings (RoomID, UserID, FullName, BookingDate, StartTime, EndTime, Status, PaymentMethod, PaymentStatus) 
                 OUTPUT inserted.BookingID
@@ -231,3 +159,22 @@ def create_booking(data: BookingData):
         print(str(e))
         print("=========================================")
         return {"status": "error", "message": str(e)}
+
+# ==========================================
+# API LẤY LỊCH SỬ ĐẶT PHÒNG CỦA RIÊNG KHÁCH HÀNG
+# ==========================================
+@app.get("/api/bookings/user/{user_id}")
+def get_user_bookings(user_id: int):
+    try:
+        with engine.connect() as conn:
+            query = text("""
+                SELECT b.*, r.Title as RoomTitle, r.ImageURL 
+                FROM Bookings b
+                JOIN Rooms r ON b.RoomID = r.RoomID
+                WHERE b.UserID = :user_id
+                ORDER BY b.BookingID DESC
+            """)
+            result = conn.execute(query, {"user_id": user_id}) 
+            return [dict(row._mapping) for row in result]
+    except Exception as e:
+        return {"error": f"Lỗi lấy lịch sử: {str(e)}"}

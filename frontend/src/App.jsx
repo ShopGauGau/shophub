@@ -9,7 +9,11 @@ import RegisterPage from './pages/RegisterPage';
 import AdminPage from './pages/AdminPage';
 import AdminBookingsPage from './pages/AdminBookingsPage'; 
 import Footer from './components/Footer';
-import FavoritesPage from './pages/FavoritesPage'; // Đã có sẵn nè
+import FavoritesPage from './pages/FavoritesPage'; 
+import PaymentResultPage from './pages/PaymentResultPage';
+
+// 1. THÊM IMPORT TRANG LỊCH SỬ ĐẶT PHÒNG Ở ĐÂY NÈ NÍ
+import MyBookingsPage from './pages/MyBookingsPage';
 
 function App() {
   const [role, setRole] = useState(null);
@@ -43,14 +47,17 @@ function App() {
 
         {role ? (
           <div className="flex items-center gap-4">
-            {/* NÚT PHÒNG ĐÃ LƯU TUI MỚI THÊM VÔ NÈ NÍ */}
             <Link to="/favorites" className="text-red-500 font-bold hover:text-red-600 hover:underline px-2 flex items-center gap-1">
               ❤️ Phòng đã lưu
             </Link>
 
+            {/* 2. THÊM NÚT LỊCH SỬ ĐẶT KẾ BÊN NÚT YÊU THÍCH */}
+            <Link to="/my-bookings" className="text-blue-600 font-bold hover:text-blue-700 hover:underline px-2 flex items-center gap-1">
+              📅 Lịch sử đặt
+            </Link>
+
             <span className="font-semibold text-gray-700 border-l border-gray-300 pl-4">Chào, {username}!</span>
             
-            {/* MENU CHO ADMIN */}
             {role === "1" && (
               <>
                 <Link to="/admin" className="text-teal-600 font-bold hover:underline px-2">Quản lý phòng</Link>
@@ -81,12 +88,14 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           
-          {/* CÁC ROUTE CỦA ADMIN */}
           <Route path="/admin" element={<AdminPage />} /> 
           <Route path="/admin-bookings" element={<AdminBookingsPage />} /> 
           
-          {/* ROUTE CHO TRANG YÊU THÍCH TUI MỚI GẮN */}
           <Route path="/favorites" element={<FavoritesPage />} /> 
+          <Route path="/payment-result" element={<PaymentResultPage />} /> 
+
+          {/* 3. THÊM ROUTE CHO TRANG LỊCH SỬ ĐẶT TẠI ĐÂY */}
+          <Route path="/my-bookings" element={<MyBookingsPage />} /> 
         </Routes>
       </div>
 

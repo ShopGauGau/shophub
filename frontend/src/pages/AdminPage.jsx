@@ -6,8 +6,9 @@ const AdminPage = () => {
   const [showAddForm, setShowAddForm] = useState(false); 
   const [editingRoomId, setEditingRoomId] = useState(null); 
   
+  // ĐÃ THÊM MapURL VÀO FORM DATA
   const [formData, setFormData] = useState({ 
-    Title: '', Price: '', Area: '', District: '', Address: '', ImageURL: '', Description: '' 
+    Title: '', Price: '', Area: '', District: '', Address: '', ImageURL: '', Description: '', MapURL: '' 
   }); 
   
   const role = localStorage.getItem("role");
@@ -31,7 +32,7 @@ const AdminPage = () => {
   };
 
   const handleDelete = async (roomId) => {
-    if (window.confirm("Ní có chắc chắn muốn xóa phòng này không?")) {
+    if (window.confirm("Ní có chắc chắn muốn xóa phòng này không? Các đơn đặt phòng cũ của phòng này cũng sẽ bị xóa theo nha!")) {
       try {
         await axios.delete(`http://127.0.0.1:8000/api/rooms/delete/${roomId}`, {
           headers: { role: role }
@@ -52,7 +53,8 @@ const AdminPage = () => {
       District: room.District || '',
       Address: room.Address || '',
       ImageURL: room.ImageURL || '',
-      Description: room.Description || ''
+      Description: room.Description || '',
+      MapURL: room.MapURL || '' // Load lại link Map cũ nếu có
     });
     setShowAddForm(true); 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -61,12 +63,12 @@ const AdminPage = () => {
   const handleCancel = () => {
     setShowAddForm(false);
     setEditingRoomId(null);
-    setFormData({ Title: '', Price: '', Area: '', District: '', Address: '', ImageURL: '', Description: '' });
+    setFormData({ Title: '', Price: '', Area: '', District: '', Address: '', ImageURL: '', Description: '', MapURL: '' });
   };
 
   const handleSaveRoom = async () => {
     if (!formData.Title || !formData.Price) {
-      alert("Ní điền thiếu Tên phòng hoặc Giá kìa!");
+      alert("Bạn điền thiếu Tên phòng hoặc Giá kìa!");
       return;
     }
     try {
@@ -126,6 +128,13 @@ const AdminPage = () => {
                 <label className="block text-gray-700 font-bold mb-1">Link hình ảnh</label>
                 <input className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" value={formData.ImageURL} onChange={(e) => setFormData({ ...formData, ImageURL: e.target.value })} />
               </div>
+
+              {/* Ô NHẬP GOOGLE MAPS Ở ĐÂY NÈ */}
+              <div className="md:col-span-2">
+                <label className="block text-gray-700 font-bold mb-1">Link nhúng Google Maps</label>
+                <input placeholder="Dán link src của iframe vào đây..." className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" value={formData.MapURL} onChange={(e) => setFormData({ ...formData, MapURL: e.target.value })} />
+              </div>
+
               <div className="md:col-span-2">
                 <label className="block text-gray-700 font-bold mb-1">Địa chỉ chi tiết</label>
                 <input className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" value={formData.Address} onChange={(e) => setFormData({ ...formData, Address: e.target.value })} />
