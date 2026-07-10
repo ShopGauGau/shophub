@@ -15,7 +15,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://frontend-xq4z.onrender.com"], # Dán link frontend vào đây nè ní
     allow_methods=["*"],
     allow_headers=["*"],
 )
