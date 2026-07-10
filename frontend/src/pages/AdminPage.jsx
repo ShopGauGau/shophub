@@ -24,7 +24,7 @@ const AdminPage = () => {
 
   const fetchRooms = async () => {
     try {
-      const res = await axios.get('http://127.0.0.1:8000/api/rooms');
+      const res = await axios.get('https://shophub-qxpt.onrender.com/api/rooms');
       setRooms(res.data);
     } catch (err) {
       console.error("Lỗi lấy danh sách phòng:", err);
@@ -34,7 +34,7 @@ const AdminPage = () => {
   const handleDelete = async (roomId) => {
     if (window.confirm("Ní có chắc chắn muốn xóa phòng này không? Các đơn đặt phòng cũ của phòng này cũng sẽ bị xóa theo nha!")) {
       try {
-        await axios.delete(`http://127.0.0.1:8000/api/rooms/delete/${roomId}`, {
+        await axios.delete(`https://shophub-qxpt.onrender.com/api/rooms/delete/${roomId}`, {
           headers: { role: role }
         });
         fetchRooms(); 
@@ -73,11 +73,11 @@ const AdminPage = () => {
     }
     try {
       if (editingRoomId) {
-        await axios.put(`http://127.0.0.1:8000/api/rooms/edit/${editingRoomId}`, formData, {
+        await axios.put(`https://shophub-qxpt.onrender.com/api/rooms/edit/${editingRoomId}`, formData, {
           headers: { role: role }
         });
       } else {
-        await axios.post('http://127.0.0.1:8000/api/rooms/add', formData, {
+        await axios.post('https://shophub-qxpt.onrender.com/api/rooms/add', formData, {
           headers: { role: role }
         });
       }

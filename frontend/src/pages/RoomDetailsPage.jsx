@@ -32,7 +32,7 @@ const RoomDetailsPage = () => {
             setCurrentUserId(finalUserId);
             
             const checkId = finalUserId || 2; 
-            axios.get(`http://127.0.0.1:8000/api/favorites/check?user_id=${checkId}&room_id=${id}`)
+            axios.get(`https://shophub-qxpt.onrender.com/api/favorites/check?user_id=${checkId}&room_id=${id}`)
                 .then(res => {
                     if (res.data && res.data.is_favorite) setIsFavorite(true);
                 })
@@ -40,7 +40,7 @@ const RoomDetailsPage = () => {
         }
 
         // Tải thông tin phòng
-        axios.get(`http://127.0.0.1:8000/api/rooms/${id}`)
+        axios.get(`https://shophub-qxpt.onrender.com/api/rooms/${id}`)
             .then(res => {
                 setRoom(res.data);
                 setLoading(false);
@@ -51,7 +51,7 @@ const RoomDetailsPage = () => {
             });
 
         // Tải lịch đặt phòng
-        axios.get('http://127.0.0.1:8000/api/bookings')
+        axios.get('https://shophub-qxpt.onrender.com/api/bookings')
             .then(res => {
                 if (Array.isArray(res.data)) {
                     const roomBookings = res.data.filter(
@@ -71,7 +71,7 @@ const RoomDetailsPage = () => {
         }
         const finalUserId = currentUserId || 2; 
         try {
-            const res = await axios.post('http://127.0.0.1:8000/api/favorites/toggle', { UserID: finalUserId, RoomID: parseInt(id) });
+            const res = await axios.post('https://shophub-qxpt.onrender.com/api/favorites/toggle', { UserID: finalUserId, RoomID: parseInt(id) });
             if (res.data.status === 'added') setIsFavorite(true); 
             else if (res.data.status === 'removed') setIsFavorite(false); 
         } catch (error) {
@@ -175,7 +175,7 @@ const RoomDetailsPage = () => {
                 PaymentMethod: paymentMethod 
             };
             
-            const response = await axios.post('http://127.0.0.1:8000/api/bookings/add', bookingData);
+            const response = await axios.post('https://shophub-qxpt.onrender.com/api/bookings/add', bookingData);
             
             if (response.data.status === 'error') {
                 alert(response.data.message);
@@ -187,7 +187,7 @@ const RoomDetailsPage = () => {
             if (paymentMethod === 'VNPAY') {
                 setShowPaymentModal(false); 
                 
-                const vnPayRes = await axios.post('http://127.0.0.1:8000/api/payment/vnpay', {
+                const vnPayRes = await axios.post('https://shophub-qxpt.onrender.com/api/payment/vnpay', {
                     BookingID: newBookingId,
                     Amount: totalPrice > 0 ? totalPrice : (Number(room?.Price) || 0) 
                 });

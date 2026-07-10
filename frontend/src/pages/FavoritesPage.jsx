@@ -17,7 +17,7 @@ const FavoritesPage = () => {
         }
 
         // Gọi API lấy danh sách phòng
-        axios.get(`http://127.0.0.1:8000/api/favorites/user/${userId}`)
+        axios.get(`https://shophub-qxpt.onrender.com/api/favorites/user/${userId}`)
             .then(res => {
                 if (res.data && !res.data.error) {
                     setSavedRooms(res.data);
@@ -35,7 +35,7 @@ const FavoritesPage = () => {
         if (!userId) return;
 
         try {
-            const res = await axios.post('http://127.0.0.1:8000/api/favorites/toggle', {
+            const res = await axios.post('https://shophub-qxpt.onrender.com/api/favorites/toggle', {
                 UserID: userId,
                 RoomID: roomId
             });

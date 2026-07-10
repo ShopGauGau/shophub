@@ -10,7 +10,7 @@ const MyBookingsPage = () => {
         const userId = localStorage.getItem('userId');
         
         if (userId && userId !== "undefined") {
-            axios.get(`http://127.0.0.1:8000/api/bookings/user/${userId}`)
+            axios.get(`https://shophub-qxpt.onrender.com/api/bookings/user/${userId}`)
                 .then(res => {
                     setBookings(Array.isArray(res.data) ? res.data : []);
                     setLoading(false);

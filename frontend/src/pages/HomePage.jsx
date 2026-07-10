@@ -18,7 +18,7 @@ const HomePage = () => {
   const [selectedPrice, setSelectedPrice] = useState("Tất cả");
 
   useEffect(() => {
-    axios.get('http://127.0.0.1:8000/api/rooms')
+    axios.get('https://shophub-qxpt.onrender.com/api/rooms')
       .then(res => {
         setRoomsData(res.data);
       })

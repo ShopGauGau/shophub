@@ -7,7 +7,7 @@ const RegisterPage = () => {
 
   const handleRegister = async () => {
     try {
-      const res = await axios.post('http://127.0.0.1:8000/api/register', { username, password });
+      const res = await axios.post('https://shophub-qxpt.onrender.com/api/register', { username, password });
       
       // Kiểm tra xem đăng ký thành công chưa (dựa vào message từ backend)
       if (res.data.message === "Đăng ký thành công! Ní đăng nhập luôn đi!") {
