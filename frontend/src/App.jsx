@@ -6,14 +6,14 @@ import ContactPage from './pages/ContactPage';
 import RoomDetailsPage from './pages/RoomDetailsPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import AdminPage from './pages/AdminPage';
-import AdminBookingsPage from './pages/AdminBookingsPage'; 
 import Footer from './components/Footer';
 import FavoritesPage from './pages/FavoritesPage'; 
 import PaymentResultPage from './pages/PaymentResultPage';
-
-// 1. THÊM IMPORT TRANG LỊCH SỬ ĐẶT PHÒNG Ở ĐÂY NÈ NÍ
 import MyBookingsPage from './pages/MyBookingsPage';
+import ProfilePage from './pages/ProfilePage';
+
+// 1. IMPORT TRANG DASHBOARD MỚI TẠI ĐÂY NÈ NÍ (Tui đã bỏ 2 cái trang Admin cũ ra cho gọn)
+import AdminDashboard from './pages/AdminDashboard'; 
 
 function App() {
   const [role, setRole] = useState(null);
@@ -51,18 +51,19 @@ function App() {
               ❤️ Phòng đã lưu
             </Link>
 
-            {/* 2. THÊM NÚT LỊCH SỬ ĐẶT KẾ BÊN NÚT YÊU THÍCH */}
             <Link to="/my-bookings" className="text-blue-600 font-bold hover:text-blue-700 hover:underline px-2 flex items-center gap-1">
               📅 Lịch sử đặt
             </Link>
 
-            <span className="font-semibold text-gray-700 border-l border-gray-300 pl-4">Chào, {username}!</span>
+            <Link to="/profile" className="font-semibold text-gray-700 border-l border-gray-300 pl-4 hover:text-blue-600 hover:underline transition">
+              Chào, {username}!
+            </Link>
             
+            {/* 2. GOM 2 NÚT THÀNH 1 NÚT DUY NHẤT DÀNH CHO ADMIN NÈ */}
             {role === "1" && (
-              <>
-                <Link to="/admin" className="text-teal-600 font-bold hover:underline px-2">Quản lý phòng</Link>
-                <Link to="/admin-bookings" className="text-orange-600 font-bold hover:underline px-2">Đơn đặt</Link>
-              </>
+              <Link to="/admin-dashboard" className="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-xl hover:bg-blue-100 hover:text-blue-700 transition flex items-center gap-2 border border-blue-200 ml-2">
+                ⚙️ Quản Trị Hệ Thống
+              </Link>
             )}
 
             <button 
@@ -88,14 +89,13 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           
-          <Route path="/admin" element={<AdminPage />} /> 
-          <Route path="/admin-bookings" element={<AdminBookingsPage />} /> 
+          {/* 3. KHAI BÁO ROUTE CHO TRANG ADMIN DASHBOARD */}
+          <Route path="/admin-dashboard" element={<AdminDashboard />} /> 
           
           <Route path="/favorites" element={<FavoritesPage />} /> 
           <Route path="/payment-result" element={<PaymentResultPage />} /> 
-
-          {/* 3. THÊM ROUTE CHO TRANG LỊCH SỬ ĐẶT TẠI ĐÂY */}
           <Route path="/my-bookings" element={<MyBookingsPage />} /> 
+          <Route path="/profile" element={<ProfilePage />} /> 
         </Routes>
       </div>
 

@@ -10,7 +10,7 @@ const AdminBookingsPage = () => {
 
   const fetchBookings = async () => {
     try {
-      const res = await axios.get('https://shophub-qxpt.onrender.com/api/bookings');
+      const res = await axios.get('http://127.0.0.1:8000/api/bookings');
       setBookings(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error("Lỗi:", err);
@@ -19,7 +19,7 @@ const AdminBookingsPage = () => {
 
   const updateStatus = async (id, newStatus) => {
     try {
-      await axios.put(`https://shophub-qxpt.onrender.com/api/bookings/update/${id}`, { status: newStatus });
+      await axios.put(`http://127.0.0.1:8000/api/bookings/update/${id}`, { status: newStatus });
       fetchBookings();
     } catch (err) {
       alert("Lỗi cập nhật trạng thái rùi ní ơi!");

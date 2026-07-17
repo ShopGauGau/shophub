@@ -19,7 +19,7 @@ const PaymentResultPage = () => {
                 const bookingId = vnp_TxnRef.split('_')[0]; 
                 
                 // Âm thầm gọi API báo cho Database biết là khách đã trả tiền!
-                axios.put(`https://shophub-qxpt.onrender.com/api/bookings/payment-success/${bookingId}`)
+                axios.put(`http://127.0.0.1:8000/api/bookings/payment-success/${bookingId}`)
                     .then(() => console.log("Đã cập nhật Database: Đã thanh toán!"))
                     .catch(err => console.error("Lỗi cập nhật DB:", err));
             }

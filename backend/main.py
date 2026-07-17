@@ -11,11 +11,14 @@ from favorites import router as favorites_router
 # Import cái vnpay.py 
 from vnpay import router as vnpay_router 
 
+# 1. THÊM DÒNG NÀY ĐỂ KÉO FILE STATS.PY VÀO
+from stats import router as stats_router 
+
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://frontend-xq4z.onrender.com"], # Dán link frontend vào đây nè ní
+    allow_origins=["http://localhost:5173"], # Trả về localhost nè
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -27,6 +30,100 @@ app.include_router(favorites_router)
 
 # Đăng ký router cho VNPAY hoạt động
 app.include_router(vnpay_router)
+
+# 2. ĐĂNG KÝ ROUTER CHO STATS HOẠT ĐỘNG TẠI ĐÂY NÈ
+app.include_router(stats_router)
+
+
+# ==========================================
+# PHẦN USERS: LẤY VÀ CẬP NHẬT THÔNG TIN TÀI KHOẢN
+# ==========================================
+class UserUpdateSchema(BaseModel):
+    FullName: str
+    Email: str
+    Phone: str
+
+class PasswordChangeSchema(BaseModel):
+    OldPassword: str
+    NewPassword: str
+
+@app.get("/api/users/{user_id}")
+def get_user_profile(user_id: int):
+    try:
+        with engine.connect() as conn:
+            # Code mới xịn xò: Nối bảng Users và Profiles lại để lấy đủ thông tin
+            query = text("""
+                SELECT u.UserID, u.Username, p.FullName, p.Email, p.Phone 
+                FROM Users u
+                LEFT JOIN Profiles p ON u.UserID = p.UserID
+                WHERE u.UserID = :id
+            """)
+            result = conn.execute(query, {"id": user_id}).mappings().first()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản!")
+            return dict(result)
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.put("/api/users/{user_id}/update")
+def update_user_profile(user_id: int, data: UserUpdateSchema):
+    try:
+        with engine.begin() as conn:
+            # Kiểm tra xem đã có thông tin trong bảng Profiles chưa
+            check_query = text("SELECT ProfileID FROM Profiles WHERE UserID = :user_id")
+            profile = conn.execute(check_query, {"user_id": user_id}).fetchone()
+            
+            if profile:
+                # Nếu có rồi thì UPDATE vào bảng Profiles (chứ không phải Users nha!)
+                update_query = text("""
+                    UPDATE Profiles 
+                    SET FullName = :fullname, Email = :email, Phone = :phone 
+                    WHERE UserID = :user_id
+                """)
+                conn.execute(update_query, {
+                    "fullname": data.FullName,
+                    "email": data.Email,
+                    "phone": data.Phone,
+                    "user_id": user_id
+                })
+            else:
+                # Nếu chưa có thì INSERT mới vào
+                insert_query = text("""
+                    INSERT INTO Profiles (UserID, FullName, Email, Phone) 
+                    VALUES (:user_id, :fullname, :email, :phone)
+                """)
+                conn.execute(insert_query, {
+                    "user_id": user_id,
+                    "fullname": data.FullName,
+                    "email": data.Email,
+                    "phone": data.Phone
+                })
+        return {"status": "success", "message": "Cập nhật thành công!"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.put("/api/users/{user_id}/change-password")
+def change_user_password(user_id: int, data: PasswordChangeSchema):
+    try:
+        with engine.connect() as conn:
+            check_query = text("SELECT Password FROM Users WHERE UserID = :user_id")
+            user = conn.execute(check_query, {"user_id": user_id}).mappings().first()
+            
+            if not user or user["Password"] != data.OldPassword:
+                return {"status": "error", "message": "Mật khẩu cũ không chính xác!"}
+                
+        # Riêng mật khẩu thì vẫn nằm bên bảng Users
+        with engine.begin() as conn:
+            update_query = text("UPDATE Users SET Password = :new_password WHERE UserID = :user_id")
+            conn.execute(update_query, {
+                "new_password": data.NewPassword,
+                "user_id": user_id
+            })
+        return {"status": "success", "message": "Đổi mật khẩu thành công!"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 
 # ==========================================
 # PHẦN ROOMS: Route lấy danh sách phòng
@@ -133,7 +230,6 @@ def create_booking(data: BookingData):
                     "message": f"Phòng này đã có người xí chỗ trong khoảng thời gian đó rồi Thiên ơi, chọn ngày khác nha!"
                 }
 
-            # Lấy lại BookingID vừa chèn bằng cách dùng OUTPUT inserted.BookingID 
             insert_query = text("""
                 INSERT INTO Bookings (RoomID, UserID, FullName, BookingDate, StartTime, EndTime, Status, PaymentMethod, PaymentStatus) 
                 OUTPUT inserted.BookingID
@@ -154,10 +250,6 @@ def create_booking(data: BookingData):
             
         return {"status": "success", "message": "Đặt phòng thành công rực rỡ!", "booking_id": new_booking_id}
     except Exception as e:
-        print("=========================================")
-        print("LỖI DATABASE KHI ĐẶT PHÒNG:")
-        print(str(e))
-        print("=========================================")
         return {"status": "error", "message": str(e)}
 
 # ==========================================

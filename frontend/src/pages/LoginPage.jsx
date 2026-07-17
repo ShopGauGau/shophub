@@ -8,7 +8,7 @@ const LoginPage = () => {
 
   const handleLogin = async () => {
     try {
-        const res = await axios.post('https://shophub-qxpt.onrender.com/api/login', { username, password });
+        const res = await axios.post('http://127.0.0.1:8000/api/login', { username, password });
         
         if (res.data.role) {
             localStorage.setItem("role", res.data.role);
