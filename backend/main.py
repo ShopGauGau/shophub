@@ -18,7 +18,10 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"], 
+    # ==========================================
+    # SỬA DẤU SAO Ở ĐÂY ĐỂ TRỊ BỆNH CORS NÈ NÍ:
+    # ==========================================
+    allow_origins=["*"], 
     allow_methods=["*"],
     allow_headers=["*"],
 )
