@@ -17,17 +17,23 @@ class SalerRegister(BaseModel):
     phone: str
 
 # ==========================================
-# 1. API ĐĂNG NHẬP (Chặn tài khoản đang chờ duyệt)
+# 1. API ĐĂNG NHẬP (Chặn tài khoản đang chờ duyệt & Bị khóa)
 # ==========================================
 @router.post("/api/login")
 async def login(user: UserAuth):
     with engine.connect() as conn:
-        query = text("SELECT UserID, Password, RoleID FROM Users WHERE Username = :u")
+        # Tui thêm cột Status vô đây để lấy dưới Database lên nè ní
+        query = text("SELECT UserID, Password, RoleID, Status FROM Users WHERE Username = :u")
         result = conn.execute(query, {"u": user.username}).fetchone()
         
         if result:
-            user_id, stored_password, role_id = result
+            # Nhớ bung thêm biến status ra để hứng dữ liệu
+            user_id, stored_password, role_id, status = result
             if user.password == stored_password:
+                
+                # CHẶN ĐỨNG TÀI KHOẢN BỊ KHÓA TẠI ĐÂY LUN
+                if status == "locked":
+                    return {"message": "Tài khoản của bạn đã bị khóa !"}
                 
                 # NẾU ROLE = 4 THÌ BÁO LỖI ĐANG CHỜ DUYỆT
                 if role_id == 4:

@@ -181,7 +181,7 @@ def get_room_details(id: int):
 
 
 # ==========================================
-# THÊM MỚI TẠI ĐÂY: QUẢN LÝ TÀI KHOẢN SALER BỞI ADMIN
+# QUẢN LÝ TÀI KHOẢN SALER BỞI ADMIN
 # ==========================================
 @app.get("/api/admin/pending-salers")
 def get_pending_salers(role: Optional[str] = Header(None)):
@@ -345,3 +345,55 @@ def get_user_bookings(user_id: int):
             return [dict(row._mapping) for row in result]
     except Exception as e:
         return {"error": f"Lỗi lấy lịch sử: {str(e)}"}
+
+
+# ==========================================
+# THÊM MỚI: API QUẢN LÝ TÀI KHOẢN (USER/SALER) DÀNH CHO ADMIN
+# ==========================================
+class UserStatusUpdate(BaseModel):
+    status: str
+
+@app.get("/api/admin/users")
+def get_all_users(role: Optional[str] = Header(None)):
+    try:
+        current_role = str(role).strip() if role else None
+        if current_role != "1":
+            raise HTTPException(status_code=403, detail="Ủa ní đâu phải Admin đâu mà đòi xem danh sách mật!")
+            
+        with engine.connect() as conn:
+            query = text("""
+                SELECT 
+                    u.UserID, 
+                    u.Username as FullName, 
+                    p.Email, 
+                    p.Phone as PhoneNumber, 
+                    u.RoleID, 
+                    COALESCE(u.Status, 'active') as Status 
+                FROM Users u
+                LEFT JOIN Profiles p ON u.UserID = p.UserID
+                ORDER BY u.RoleID ASC, u.UserID DESC
+            """)
+            result = conn.execute(query).mappings().all()
+            return [dict(row) for row in result]
+            
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.put("/api/admin/users/status/{user_id}")
+def update_user_status(user_id: int, data: UserStatusUpdate, role: Optional[str] = Header(None)):
+    try:
+        current_role = str(role).strip() if role else None
+        if current_role != "1":
+            raise HTTPException(status_code=403, detail="Chỉ Admin tối cao mới được quyền khóa acc nha!")
+            
+        with engine.begin() as conn:
+            query = text("UPDATE Users SET Status = :status WHERE UserID = :user_id")
+            conn.execute(query, {"status": data.status, "user_id": user_id})
+            
+        return {"message": "Cập nhật trạng thái thành công rực rỡ!"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        return {"error": str(e)}

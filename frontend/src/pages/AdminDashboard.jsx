@@ -4,6 +4,8 @@ import AdminPage from './AdminPage';
 import AdminBookingsPage from './AdminBookingsPage';
 // 1. IMPORT CÁI COMPONENT THỐNG KÊ CHI TIẾT VÀO ĐÂY NÈ NÍ
 import DashboardStats from './DashboardStats'; 
+// IMPORT THÊM CÁI TRANG QUẢN LÝ TÀI KHOẢN MỚI LÀM NÈ
+import AdminUsersPage from './AdminUsersPage';
 
 const AdminDashboard = () => {
   // Đổi trạng thái mặc định thành 'stats' để vừa vào là hiện thống kê liền
@@ -82,6 +84,16 @@ const AdminDashboard = () => {
               <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">{pendingSalers.length}</span>
             )}
           </button>
+
+          {/* NÚT MỚI THÊM: QUẢN LÝ TÀI KHOẢN */}
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`w-full flex items-center gap-3 px-4 py-4 rounded-xl font-bold transition-all duration-300 ${
+              activeTab === 'users' ? 'bg-rose-600 text-white shadow-lg' : 'text-gray-400 hover:bg-blue-800'
+            }`}
+          >
+            👥 Quản Lý Tài Khoản
+          </button>
         </div>
       </div>
 
@@ -92,6 +104,9 @@ const AdminDashboard = () => {
 
         {activeTab === 'rooms' && <AdminPage />}
         {activeTab === 'bookings' && <AdminBookingsPage />}
+        
+        {/* HIỆN TRANG QUẢN LÝ TÀI KHOẢN KHI BẤM NÚT */}
+        {activeTab === 'users' && <AdminUsersPage />}
         
         {/* KHU VỰC DUYỆT SALER */}
         {activeTab === 'salers' && (
