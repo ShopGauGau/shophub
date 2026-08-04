@@ -14,7 +14,7 @@ const AdminDashboard = () => {
   const userRole = localStorage.getItem('role') || '1';
 
   const fetchPendingSalers = () => {
-    axios.get('http://127.0.0.1:8000/api/admin/pending-salers', { headers: { role: userRole } })
+    axios.get('https://roomhub-api.onrender.com/api/admin/pending-salers', { headers: { role: userRole } })
       .then(res => setPendingSalers(res.data))
       .catch(err => console.error("Lỗi lấy danh sách saler:", err));
   };
@@ -25,7 +25,7 @@ const AdminDashboard = () => {
 
   const handleApprove = (userId) => {
     if (window.confirm("Ní có chắc muốn cấp quyền Saler cho tài khoản này không?")) {
-      axios.put(`http://127.0.0.1:8000/api/admin/approve-saler/${userId}`, {}, { headers: { role: userRole } })
+      axios.put(`https://roomhub-api.onrender.com/api/admin/approve-saler/${userId}`, {}, { headers: { role: userRole } })
         .then(res => {
           alert(res.data.message);
           fetchPendingSalers();

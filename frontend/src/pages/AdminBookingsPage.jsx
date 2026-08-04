@@ -14,7 +14,7 @@ const AdminBookingsPage = () => {
 
   const fetchBookings = () => {
     setLoading(true);
-    axios.get('http://127.0.0.1:8000/api/bookings', {
+    axios.get('https://roomhub-api.onrender.com/api/bookings', {
       headers: { 'role': userRole, 'user-id': userId }
     })
     .then(res => {
@@ -37,7 +37,7 @@ const AdminBookingsPage = () => {
     const actionText = newStatus === 'Đã xác nhận' ? 'duyệt' : 'hủy';
     
     if (window.confirm(`Ní có chắc chắn muốn ${actionText} đơn đặt phòng này không?`)) {
-      axios.put(`http://127.0.0.1:8000/api/bookings/update/${bookingId}`, { 
+      axios.put(`https://roomhub-api.onrender.com/api/bookings/update/${bookingId}`, { 
         status: newStatus 
       })
       .then(res => {

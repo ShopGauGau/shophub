@@ -17,7 +17,7 @@ const SalerRegisterPage = () => {
     }
 
     // Truyền đủ 4 trường qua Backend
-    axios.post('http://127.0.0.1:8000/api/auth/register-saler', {
+    axios.post('https://roomhub-api.onrender.com/api/auth/register-saler', {
       username: formData.username,
       password: formData.password,
       email: formData.email,

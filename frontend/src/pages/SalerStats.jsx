@@ -9,7 +9,7 @@ const SalerStats = () => {
   const userId = localStorage.getItem('userId') || '';
 
   useEffect(() => {
-    axios.get('http://127.0.0.1:8000/api/saler/stats', {
+    axios.get('https://roomhub-api.onrender.com/api/saler/stats', {
       headers: { 'role': userRole, 'user-id': userId }
     })
     .then(res => {

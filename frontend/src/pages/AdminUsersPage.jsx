@@ -13,7 +13,7 @@ const AdminUsersPage = () => {
 
   const fetchUsers = () => {
     setLoading(true);
-    axios.get('http://127.0.0.1:8000/api/admin/users', {
+    axios.get('https://roomhub-api.onrender.com/api/admin/users', {
       headers: {
         'role': localStorage.getItem('role'),
         'user-id': localStorage.getItem('userId')
@@ -39,7 +39,7 @@ const AdminUsersPage = () => {
     const actionText = nextStatus === 'active' ? 'mở khóa' : 'khóa';
 
     if (window.confirm(`Ní có chắc muốn ${actionText} tài khoản này không?`)) {
-      axios.put(`http://127.0.0.1:8000/api/admin/users/status/${userId}`, { status: nextStatus }, {
+      axios.put(`https://roomhub-api.onrender.com/api/admin/users/status/${userId}`, { status: nextStatus }, {
         headers: {
             'role': localStorage.getItem('role'),
         }

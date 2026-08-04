@@ -32,7 +32,7 @@ const HomePage = () => {
   ];
 
   useEffect(() => {
-    axios.get('http://127.0.0.1:8000/api/rooms')
+    axios.get('https://roomhub-api.onrender.com/api/rooms')
       .then(res => setRooms(res.data))
       .catch(err => console.error("Lỗi tải phòng:", err));
 

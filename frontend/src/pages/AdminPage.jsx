@@ -24,7 +24,7 @@ const AdminPage = () => {
 
   // 1. LẤY DANH SÁCH PHÒNG PHÂN QUYỀN
   const fetchRooms = () => {
-    axios.get('http://127.0.0.1:8000/api/admin/rooms', getAuthHeaders())
+    axios.get('https://roomhub-api.onrender.com/api/admin/rooms', getAuthHeaders())
       .then(res => setRooms(res.data))
       .catch(err => console.error("Lỗi lấy danh sách phòng:", err));
   };
@@ -49,7 +49,7 @@ const AdminPage = () => {
 
     if (editingId) {
       // API Sửa
-      axios.put(`http://127.0.0.1:8000/api/rooms/edit/${editingId}`, payload, getAuthHeaders())
+      axios.put(`https://roomhub-api.onrender.com/api/rooms/edit/${editingId}`, payload, getAuthHeaders())
         .then(() => {
           alert("Cập nhật phòng thành công!");
           resetForm();
@@ -58,7 +58,7 @@ const AdminPage = () => {
         .catch(err => alert("Lỗi sửa phòng: " + (err.response?.data?.detail || err.message)));
     } else {
       // API Thêm
-      axios.post('http://127.0.0.1:8000/api/rooms/add', payload, getAuthHeaders())
+      axios.post('https://roomhub-api.onrender.com/api/rooms/add', payload, getAuthHeaders())
         .then(() => {
           alert("Thêm phòng mới thành công!");
           resetForm();
@@ -71,7 +71,7 @@ const AdminPage = () => {
   // 3. XÓA PHÒNG
   const handleDelete = (id) => {
     if (window.confirm("Ní có chắc muốn xóa căn phòng này không?")) {
-      axios.delete(`http://127.0.0.1:8000/api/rooms/delete/${id}`, getAuthHeaders())
+      axios.delete(`https://roomhub-api.onrender.com/api/rooms/delete/${id}`, getAuthHeaders())
         .then(() => {
           alert("Đã xóa phòng thành công!");
           fetchRooms();
