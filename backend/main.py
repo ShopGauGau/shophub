@@ -7,18 +7,18 @@ from auth import router as auth_router
 from rooms import router as rooms_router
 from datetime import datetime 
 from favorites import router as favorites_router
+from typing import Optional
 
 # Import cái vnpay.py 
 from vnpay import router as vnpay_router 
-
-# 1. THÊM DÒNG NÀY ĐỂ KÉO FILE STATS.PY VÀO
+# Import stats.py
 from stats import router as stats_router 
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"], # Trả về localhost nè
+    allow_origins=["http://localhost:5173"], 
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -27,11 +27,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(rooms_router)
 app.include_router(favorites_router)
-
-# Đăng ký router cho VNPAY hoạt động
 app.include_router(vnpay_router)
-
-# 2. ĐĂNG KÝ ROUTER CHO STATS HOẠT ĐỘNG TẠI ĐÂY NÈ
 app.include_router(stats_router)
 
 
@@ -51,7 +47,6 @@ class PasswordChangeSchema(BaseModel):
 def get_user_profile(user_id: int):
     try:
         with engine.connect() as conn:
-            # Code mới xịn xò: Nối bảng Users và Profiles lại để lấy đủ thông tin
             query = text("""
                 SELECT u.UserID, u.Username, p.FullName, p.Email, p.Phone 
                 FROM Users u
@@ -70,12 +65,10 @@ def get_user_profile(user_id: int):
 def update_user_profile(user_id: int, data: UserUpdateSchema):
     try:
         with engine.begin() as conn:
-            # Kiểm tra xem đã có thông tin trong bảng Profiles chưa
             check_query = text("SELECT ProfileID FROM Profiles WHERE UserID = :user_id")
             profile = conn.execute(check_query, {"user_id": user_id}).fetchone()
             
             if profile:
-                # Nếu có rồi thì UPDATE vào bảng Profiles (chứ không phải Users nha!)
                 update_query = text("""
                     UPDATE Profiles 
                     SET FullName = :fullname, Email = :email, Phone = :phone 
@@ -88,7 +81,6 @@ def update_user_profile(user_id: int, data: UserUpdateSchema):
                     "user_id": user_id
                 })
             else:
-                # Nếu chưa có thì INSERT mới vào
                 insert_query = text("""
                     INSERT INTO Profiles (UserID, FullName, Email, Phone) 
                     VALUES (:user_id, :fullname, :email, :phone)
@@ -113,7 +105,6 @@ def change_user_password(user_id: int, data: PasswordChangeSchema):
             if not user or user["Password"] != data.OldPassword:
                 return {"status": "error", "message": "Mật khẩu cũ không chính xác!"}
                 
-        # Riêng mật khẩu thì vẫn nằm bên bảng Users
         with engine.begin() as conn:
             update_query = text("UPDATE Users SET Password = :new_password WHERE UserID = :user_id")
             conn.execute(update_query, {
@@ -128,6 +119,39 @@ def change_user_password(user_id: int, data: PasswordChangeSchema):
 # ==========================================
 # PHẦN ROOMS: Route lấy danh sách phòng
 # ==========================================
+
+# 1. API CẤP QUYỀN LẤY PHÒNG CHO ADMIN & SALER
+@app.get("/api/admin/rooms")
+def get_admin_rooms(role: Optional[str] = Header(None), user_id: Optional[str] = Header(None)):
+    try:
+        with engine.connect() as conn:
+            current_role = str(role).strip() if role else None
+            
+            if current_role == "1":
+                query = text("SELECT * FROM Rooms ORDER BY RoomID DESC")
+                result = conn.execute(query).mappings().all()
+            
+            elif current_role == "2" and user_id:
+                query = text("SELECT * FROM Rooms WHERE SalerID = :saler_id ORDER BY RoomID DESC")
+                result = conn.execute(query, {"saler_id": int(user_id)}).mappings().all()
+            
+            else:
+                raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập danh sách này!")
+                
+            data = []
+            for row in result:
+                row_dict = dict(row)
+                if isinstance(row_dict.get('Title'), str):
+                    row_dict['Title'] = row_dict['Title'].strip()
+                data.append(row_dict)
+            return data
+            
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        return {"error": str(e)}
+
+# 2. API LẤY PHÒNG BÌNH THƯỜNG TRANG CHỦ
 @app.get("/api/rooms")
 def get_rooms():
     try:
@@ -155,20 +179,73 @@ def get_room_details(id: int):
     except Exception as e:
         return {"error": str(e)}
 
+
+# ==========================================
+# THÊM MỚI TẠI ĐÂY: QUẢN LÝ TÀI KHOẢN SALER BỞI ADMIN
+# ==========================================
+@app.get("/api/admin/pending-salers")
+def get_pending_salers(role: Optional[str] = Header(None)):
+    try:
+        current_role = str(role).strip() if role else None
+        if current_role != "1":
+            raise HTTPException(status_code=403, detail="Chỉ sếp tổng Admin mới được quyền xem danh sách này!")
+        
+        with engine.connect() as conn:
+            # Lấy thông tin các Saler đang nằm ở hàng chờ (RoleID = 4)
+            query = text("""
+                SELECT u.UserID, u.Username, p.Email, p.Phone 
+                FROM Users u
+                LEFT JOIN Profiles p ON u.UserID = p.UserID
+                WHERE u.RoleID = 4
+                ORDER BY u.UserID DESC
+            """)
+            result = conn.execute(query).mappings().all()
+            return [dict(r) for r in result]
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.put("/api/admin/approve-saler/{user_id}")
+def approve_saler(user_id: int, role: Optional[str] = Header(None)):
+    try:
+        current_role = str(role).strip() if role else None
+        if current_role != "1":
+            raise HTTPException(status_code=403, detail="Chỉ Admin tối cao mới được quyền duyệt tài khoản!")
+            
+        with engine.begin() as conn:
+            # Chuyển hóa RoleID từ 4 (Chờ duyệt) sang 2 (Saler chính thức)
+            conn.execute(text("UPDATE Users SET RoleID = 2 WHERE UserID = :uid"), {"uid": user_id})
+        return {"message": "Đã phê duyệt Saler thành công rực rỡ! Đối tác hiện tại có thể đăng nhập."}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ==========================================
 # PHẦN BOOKINGS (ĐẶT PHÒNG)
 # ==========================================
 @app.get("/api/bookings")
-def get_all_bookings():
+def get_all_bookings(role: Optional[str] = Header(None), user_id: Optional[str] = Header(None)):
     try:
         with engine.connect() as conn:
-            query = text("""
-                SELECT b.*, r.Title as RoomTitle 
-                FROM Bookings b
-                JOIN Rooms r ON b.RoomID = r.RoomID
-                ORDER BY b.BookingID DESC
-            """)
-            result = conn.execute(query) 
+            current_role = str(role).strip() if role else None
+
+            if current_role == "2" and user_id:
+                query = text("""
+                    SELECT b.*, r.Title as RoomTitle 
+                    FROM Bookings b
+                    JOIN Rooms r ON b.RoomID = r.RoomID
+                    WHERE r.SalerID = :saler_id
+                    ORDER BY b.BookingID DESC
+                """)
+                result = conn.execute(query, {"saler_id": int(user_id)})
+            else:
+                query = text("""
+                    SELECT b.*, r.Title as RoomTitle 
+                    FROM Bookings b
+                    JOIN Rooms r ON b.RoomID = r.RoomID
+                    ORDER BY b.BookingID DESC
+                """)
+                result = conn.execute(query) 
+                
             return [dict(row._mapping) for row in result]
     except Exception as e:
         return {"error": f"Lỗi lấy đơn đặt: {str(e)}"}
@@ -177,6 +254,7 @@ def get_all_bookings():
 def update_booking_status(id: int, data: dict):
     new_status = data.get("status")
     with engine.connect() as conn:
+        conn.execute(text("UPDATE Bookings SET Status = :status WHERE BookingID = :id"), {"status": new_status, "id": id})
         conn.execute(text("UPDATE Bookings SET Status = :status WHERE BookingID = :id"), {"status": new_status, "id": id})
         conn.commit()
     return {"message": "Cập nhật thành công!"}
@@ -252,9 +330,6 @@ def create_booking(data: BookingData):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# ==========================================
-# API LẤY LỊCH SỬ ĐẶT PHÒNG CỦA RIÊNG KHÁCH HÀNG
-# ==========================================
 @app.get("/api/bookings/user/{user_id}")
 def get_user_bookings(user_id: int):
     try:

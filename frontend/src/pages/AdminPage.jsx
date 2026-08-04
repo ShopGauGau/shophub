@@ -3,49 +3,85 @@ import axios from 'axios';
 
 const AdminPage = () => {
   const [rooms, setRooms] = useState([]);
-  const [showAddForm, setShowAddForm] = useState(false); 
-  const [editingRoomId, setEditingRoomId] = useState(null); 
-  
-  // ĐÃ THÊM MapURL VÀO FORM DATA
-  const [formData, setFormData] = useState({ 
-    Title: '', Price: '', Area: '', District: '', Address: '', ImageURL: '', Description: '', MapURL: '' 
-  }); 
-  
-  const role = localStorage.getItem("role");
+  const [formData, setFormData] = useState({
+    Title: '', Price: '', Area: '', District: '',
+    Address: '', ImageURL: '', Description: '', MapURL: '', SalerID: ''
+  });
+  const [editingId, setEditingId] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+
+  // Lấy role và userId từ LocalStorage
+  const userRole = localStorage.getItem('role') || '1';
+  const userId = localStorage.getItem('userId') || '';
+
+  // Config Header gửi kèm cho Axios (Đã fix lỗi dấu gạch nối)
+  const getAuthHeaders = () => ({
+    headers: {
+      'role': userRole,
+      'user-id': userId // <-- Bí kíp nằm ở đây nè ní, đổi gạch dưới thành gạch nối!
+    }
+  });
+
+  // 1. LẤY DANH SÁCH PHÒNG PHÂN QUYỀN
+  const fetchRooms = () => {
+    axios.get('http://127.0.0.1:8000/api/admin/rooms', getAuthHeaders())
+      .then(res => setRooms(res.data))
+      .catch(err => console.error("Lỗi lấy danh sách phòng:", err));
+  };
 
   useEffect(() => {
-    if (role !== "1") {
-      alert("Ní không có quyền vào trang quản trị!");
-      window.location.href = "/"; 
-      return;
-    }
     fetchRooms();
-  }, [role]);
+  }, []);
 
-  const fetchRooms = async () => {
-    try {
-      const res = await axios.get('http://127.0.0.1:8000/api/rooms');
-      setRooms(res.data);
-    } catch (err) {
-      console.error("Lỗi lấy danh sách phòng:", err);
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  // 2. THÊM HOẶC SỬA PHÒNG
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const payload = {
+      ...formData,
+      Price: parseFloat(formData.Price) || 0,
+      Area: parseFloat(formData.Area) || 0,
+      SalerID: formData.SalerID ? parseInt(formData.SalerID) : null
+    };
+
+    if (editingId) {
+      // API Sửa
+      axios.put(`http://127.0.0.1:8000/api/rooms/edit/${editingId}`, payload, getAuthHeaders())
+        .then(() => {
+          alert("Cập nhật phòng thành công!");
+          resetForm();
+          fetchRooms();
+        })
+        .catch(err => alert("Lỗi sửa phòng: " + (err.response?.data?.detail || err.message)));
+    } else {
+      // API Thêm
+      axios.post('http://127.0.0.1:8000/api/rooms/add', payload, getAuthHeaders())
+        .then(() => {
+          alert("Thêm phòng mới thành công!");
+          resetForm();
+          fetchRooms();
+        })
+        .catch(err => alert("Lỗi thêm phòng: " + (err.response?.data?.detail || err.message)));
     }
   };
 
-  const handleDelete = async (roomId) => {
-    if (window.confirm("Ní có chắc chắn muốn xóa phòng này không? Các đơn đặt phòng cũ của phòng này cũng sẽ bị xóa theo nha!")) {
-      try {
-        await axios.delete(`http://127.0.0.1:8000/api/rooms/delete/${roomId}`, {
-          headers: { role: role }
-        });
-        fetchRooms(); 
-      } catch (err) {
-        alert(err.response?.data?.detail || "Lỗi xóa phòng!");
-      }
+  // 3. XÓA PHÒNG
+  const handleDelete = (id) => {
+    if (window.confirm("Ní có chắc muốn xóa căn phòng này không?")) {
+      axios.delete(`http://127.0.0.1:8000/api/rooms/delete/${id}`, getAuthHeaders())
+        .then(() => {
+          alert("Đã xóa phòng thành công!");
+          fetchRooms();
+        })
+        .catch(err => alert("Lỗi xóa phòng: " + (err.response?.data?.detail || err.message)));
     }
   };
 
-  const handleEditClick = (room) => {
-    setEditingRoomId(room.RoomID); 
+  const handleEdit = (room) => {
+    setEditingId(room.RoomID);
     setFormData({
       Title: room.Title || '',
       Price: room.Price || '',
@@ -54,129 +90,138 @@ const AdminPage = () => {
       Address: room.Address || '',
       ImageURL: room.ImageURL || '',
       Description: room.Description || '',
-      MapURL: room.MapURL || '' // Load lại link Map cũ nếu có
+      MapURL: room.MapURL || '',
+      SalerID: room.SalerID || ''
     });
-    setShowAddForm(true); 
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setShowModal(true);
   };
 
-  const handleCancel = () => {
-    setShowAddForm(false);
-    setEditingRoomId(null);
-    setFormData({ Title: '', Price: '', Area: '', District: '', Address: '', ImageURL: '', Description: '', MapURL: '' });
-  };
-
-  const handleSaveRoom = async () => {
-    if (!formData.Title || !formData.Price) {
-      alert("Bạn điền thiếu Tên phòng hoặc Giá kìa!");
-      return;
-    }
-    try {
-      if (editingRoomId) {
-        await axios.put(`http://127.0.0.1:8000/api/rooms/edit/${editingRoomId}`, formData, {
-          headers: { role: role }
-        });
-      } else {
-        await axios.post('http://127.0.0.1:8000/api/rooms/add', formData, {
-          headers: { role: role }
-        });
-      }
-      handleCancel(); 
-      fetchRooms(); 
-    } catch (err) {
-      alert(err.response?.data?.detail || "Lỗi lưu phòng!");
-    }
+  const resetForm = () => {
+    setFormData({ Title: '', Price: '', Area: '', District: '', Address: '', ImageURL: '', Description: '', MapURL: '', SalerID: '' });
+    setEditingId(null);
+    setShowModal(false);
   };
 
   return (
-    <div className="p-10 bg-gray-100 min-h-screen">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold text-teal-800">Quản lý phòng trọ (Admin)</h2>
-          <button 
-            onClick={showAddForm ? handleCancel : () => setShowAddForm(true)}
-            className={`${showAddForm ? 'bg-gray-500 hover:bg-gray-600' : 'bg-teal-600 hover:bg-teal-700'} text-white px-5 py-2 rounded-lg font-bold transition shadow-lg`}
-          >
-            {showAddForm ? "Hủy" : "+ Thêm phòng mới"}
-          </button>
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">
+            {userRole === '1' ? 'Quản Lý Toàn Bộ Phòng Trọ (Admin)' : 'Danh Sách Phòng Phụ Trách (Saler)'}
+          </h2>
+          <p className="text-sm text-gray-500">
+            {userRole === '1' ? 'Quản lý toàn bộ hệ thống phòng' : `Đang hiển thị phòng thuộc quản lý của Saler ID: ${userId}`}
+          </p>
         </div>
-
-        {showAddForm && (
-          <div className="bg-white p-6 rounded-xl shadow-lg mb-6 border-l-4 border-blue-500">
-            <h3 className="text-xl font-bold text-blue-700 mb-4 border-b pb-2">
-              {editingRoomId ? `Đang sửa phòng ID: ${editingRoomId}` : "Nhập thông tin phòng mới"}
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-gray-700 font-bold mb-1">Tiêu đề phòng (*)</label>
-                <input className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" value={formData.Title} onChange={(e) => setFormData({ ...formData, Title: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-bold mb-1">Giá thuê (VND) (*)</label>
-                <input type="number" className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" value={formData.Price} onChange={(e) => setFormData({ ...formData, Price: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-bold mb-1">Diện tích (m2)</label>
-                <input type="number" className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" value={formData.Area} onChange={(e) => setFormData({ ...formData, Area: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-bold mb-1">Khu vực</label>
-                <input className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" value={formData.District} onChange={(e) => setFormData({ ...formData, District: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-bold mb-1">Link hình ảnh</label>
-                <input className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" value={formData.ImageURL} onChange={(e) => setFormData({ ...formData, ImageURL: e.target.value })} />
-              </div>
-
-              {/* Ô NHẬP GOOGLE MAPS Ở ĐÂY NÈ */}
-              <div className="md:col-span-2">
-                <label className="block text-gray-700 font-bold mb-1">Link nhúng Google Maps</label>
-                <input placeholder="Dán link src của iframe vào đây..." className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" value={formData.MapURL} onChange={(e) => setFormData({ ...formData, MapURL: e.target.value })} />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-gray-700 font-bold mb-1">Địa chỉ chi tiết</label>
-                <input className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" value={formData.Address} onChange={(e) => setFormData({ ...formData, Address: e.target.value })} />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-gray-700 font-bold mb-1">Mô tả phòng</label>
-                <textarea rows="3" className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" value={formData.Description} onChange={(e) => setFormData({ ...formData, Description: e.target.value })} />
-              </div>
-            </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={handleCancel} className="bg-gray-300 text-gray-800 px-6 py-2 rounded-lg font-bold hover:bg-gray-400 transition">Hủy</button>
-              <button onClick={handleSaveRoom} className="bg-blue-600 text-white px-8 py-2 rounded-lg font-bold hover:bg-blue-700 transition">💾 {editingRoomId ? "Cập nhật" : "Lưu"}</button>
-            </div>
-          </div>
-        )}
-
-        <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-teal-700 text-white">
-              <tr>
-                <th className="p-4">ID</th>
-                <th className="p-4">Tên phòng</th>
-                <th className="p-4">Giá (VND)</th>
-                <th className="p-4 text-center">Hành động</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rooms.map((room) => (
-                <tr key={room.RoomID} className="border-b hover:bg-gray-50">
-                  <td className="p-4 text-gray-600">{room.RoomID}</td>
-                  <td className="p-4 font-semibold text-gray-800">{room.Title}</td>
-                  <td className="p-4 text-red-600 font-bold">{room.Price}</td>
-                  <td className="p-4 text-center space-x-3">
-                    <button onClick={() => handleEditClick(room)} className="bg-yellow-500 text-white px-4 py-1 rounded-md font-medium hover:bg-yellow-600 shadow">Sửa</button>
-                    <button onClick={() => handleDelete(room.RoomID)} className="bg-red-500 text-white px-4 py-1 rounded-md font-medium hover:bg-red-600 shadow">Xóa</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <button
+          onClick={() => { resetForm(); setShowModal(true); }}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl transition shadow"
+        >
+          ➕ Thêm Phòng Mới
+        </button>
       </div>
+
+      {/* BẢNG DANH SÁCH PHÒNG */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-gray-100 text-gray-600">
+            <tr>
+              <th className="p-4">Hình ảnh</th>
+              <th className="p-4">Tên phòng</th>
+              <th className="p-4">Khu vực</th>
+              <th className="p-4">Giá thuê</th>
+              {userRole === '1' && <th className="p-4">Saler Quản Lý</th>}
+              <th className="p-4 text-center">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {rooms.map((room) => (
+              <tr key={room.RoomID} className="hover:bg-gray-50">
+                <td className="p-4">
+                  <img src={room.ImageURL || 'https://via.placeholder.com/100'} alt="" className="w-16 h-12 object-cover rounded-lg" />
+                </td>
+                <td className="p-4 font-bold text-gray-800">{room.Title}</td>
+                <td className="p-4">{room.District}</td>
+                <td className="p-4 font-bold text-teal-600">{Number(room.Price).toLocaleString('vi-VN')} đ</td>
+                {userRole === '1' && (
+                  <td className="p-4">
+                    <span className="bg-purple-100 text-purple-700 text-xs px-2.5 py-1 rounded-full font-bold">
+                      {room.SalerID ? `Saler ID: ${room.SalerID}` : 'Chưa gán'}
+                    </span>
+                  </td>
+                )}
+                <td className="p-4 text-center space-x-2">
+                  <button onClick={() => handleEdit(room)} className="bg-amber-100 text-amber-700 px-3 py-1 rounded-lg font-bold text-xs hover:bg-amber-200">✏️ Sửa</button>
+                  <button onClick={() => handleDelete(room.RoomID)} className="bg-red-100 text-red-700 px-3 py-1 rounded-lg font-bold text-xs hover:bg-red-200">🗑️ Xóa</button>
+                </td>
+              </tr>
+            ))}
+            {rooms.length === 0 && (
+              <tr>
+                <td colSpan={userRole === '1' ? 6 : 5} className="p-8 text-center text-gray-400">Không có phòng nào trong danh sách!</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* MODAL FORM THÊM / SỬA PHÒNG */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <h3 className="text-xl font-bold mb-4">{editingId ? 'Chỉnh Sửa Phòng' : 'Thêm Phòng Mới'}</h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-gray-600">Tên phòng *</label>
+                <input type="text" name="Title" value={formData.Title} onChange={handleChange} required className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-600">Giá thuê (VNĐ) *</label>
+                  <input type="number" name="Price" value={formData.Price} onChange={handleChange} required className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-600">Diện tích (m²)</label>
+                  <input type="number" name="Area" value={formData.Area} onChange={handleChange} className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-600">Quận / Huyện</label>
+                  <input type="text" name="District" value={formData.District} onChange={handleChange} className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                {userRole === '1' && (
+                  <div>
+                    <label className="text-xs font-bold text-purple-600">Gán Saler ID (Admin)</label>
+                    <input type="number" name="SalerID" value={formData.SalerID} onChange={handleChange} placeholder="Ví dụ: 7" className="w-full border border-purple-200 bg-purple-50/50 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-purple-500" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-600">Địa chỉ chi tiết</label>
+                <input type="text" name="Address" value={formData.Address} onChange={handleChange} className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-600">Link hình ảnh (URL)</label>
+                <input type="text" name="ImageURL" value={formData.ImageURL} onChange={handleChange} className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-600">Link Google Map (Embed URL)</label>
+                <input type="text" name="MapURL" value={formData.MapURL} onChange={handleChange} className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-600">Mô tả chi tiết</label>
+                <textarea name="Description" value={formData.Description} onChange={handleChange} rows="3" className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button type="button" onClick={resetForm} className="px-4 py-2 rounded-lg bg-gray-200 font-bold text-gray-700 hover:bg-gray-300">Hủy</button>
+                <button type="submit" className="px-5 py-2 rounded-lg bg-blue-600 font-bold text-white hover:bg-blue-700">{editingId ? 'Cập Nhật' : 'Tạo Mới'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
