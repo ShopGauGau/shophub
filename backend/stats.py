@@ -42,6 +42,7 @@ def get_admin_stats(room_title: Optional[str] = None):
                 daily_result = conn.execute(daily_query, {"room_title": room_title})
                 daily_chart = [{"name": row._mapping['DayStr'], "DoanhThu": float(row._mapping['DailyRevenue'])} for row in daily_result]
                 
+                # SỬA LỖI Ở ĐÂY: Thêm phòng vệ chống sập nếu phòng chưa có doanh thu ngày nào
                 if not daily_chart:
                     daily_chart = [{"name": datetime.now().strftime('%d/%m'), "DoanhThu": 0}]
 
@@ -65,19 +66,19 @@ def get_admin_stats(room_title: Optional[str] = None):
                 return {
                     "is_single_room": True,
                     "room_title": room_title,
-                    "total_revenue": float(room_info["PaidRevenue"]),
-                    "total_bookings": room_info["TotalBookings"],
-                    "room_price": float(room_info["Price"]),
+                    "total_revenue": float(room_info["PaidRevenue"] or 0),
+                    "total_bookings": room_info["TotalBookings"] or 0,
+                    "room_price": float(room_info["Price"] or 0),
                     "chart_data": daily_chart,
                     "recent_bookings": recent_bookings
                 }
 
-            # --- TRƯỜNG HỢP 2: DASHBOARD TỔNG QUAN HỆ THỐNG (CODE CŨ CỦA NÍ) ---
+            # --- TRƯỜNG HỢP 2: DASHBOARD TỔNG QUAN HỆ THỐNG ---
             revenue_query = text("SELECT COALESCE(SUM(r.Price), 0) FROM Bookings b JOIN Rooms r ON b.RoomID = r.RoomID WHERE b.PaymentStatus = N'Đã thanh toán'")
-            total_revenue = conn.execute(revenue_query).scalar()
+            total_revenue = conn.execute(revenue_query).scalar() or 0
 
             bookings_query = text("SELECT COUNT(*) as TotalBookings, SUM(CASE WHEN PaymentStatus = N'Đã thanh toán' THEN 1 ELSE 0 END) as PaidBookings FROM Bookings")
-            bookings_result = conn.execute(bookings_query).mappings().first()
+            bookings_result = bookings_query_res = conn.execute(bookings_query).mappings().first()
             total_bookings = bookings_result["TotalBookings"] or 0
             paid_bookings = bookings_result["PaidBookings"] or 0
 
@@ -93,7 +94,8 @@ def get_admin_stats(room_title: Optional[str] = None):
                 GROUP BY FORMAT(b.BookingDate, 'dd/MM'), CAST(b.BookingDate AS DATE) ORDER BY CAST(b.BookingDate AS DATE) ASC
             """)
             daily_chart = [{"name": row._mapping['DayStr'], "DoanhThu": float(row._mapping['DailyRevenue'])} for row in conn.execute(daily_query)]
-            if not daily_chart: daily_chart = [{"name": datetime.now().strftime('%d/%m'), "DoanhThu": 0}]
+            if not daily_chart: 
+                daily_chart = [{"name": datetime.now().strftime('%d/%m'), "DoanhThu": 0}]
 
             room_stats_query = text("""
                 SELECT r.Title, COUNT(b.BookingID) as BookingCount,
@@ -130,21 +132,19 @@ def get_admin_stats(room_title: Optional[str] = None):
 
 
 # ==========================================
-# THÊM MỚI: API THỐNG KÊ CHI TIẾT DÀNH RIÊNG CHO SALER
+# API THỐNG KÊ CHI TIẾT DÀNH RIÊNG CHO SALER
 # ==========================================
 @router.get("/api/saler/stats")
 def get_saler_stats(role: Optional[str] = Header(None), user_id: Optional[str] = Header(None)):
     try:
         current_role = str(role).strip() if role else None
         
-        # Bảo mật: Chỉ cho phép Saler (role=2) truy cập
         if current_role != "2" or not user_id:
             raise HTTPException(status_code=403, detail="Ủa ní không phải Saler hoặc thiếu UserID rồi kìa!")
             
         saler_id = int(user_id)
         
         with engine.connect() as conn:
-            # 1. Tính tổng doanh thu từ các đơn ĐÃ THANH TOÁN của các phòng thuộc Saler này
             revenue_query = text("""
                 SELECT SUM(r.Price) as TotalRevenue
                 FROM Bookings b
@@ -153,11 +153,9 @@ def get_saler_stats(role: Optional[str] = Header(None), user_id: Optional[str] =
             """)
             total_revenue = conn.execute(revenue_query, {"saler_id": saler_id}).scalar() or 0
 
-            # 2. Đếm tổng số phòng trọ mà Saler này đang sở hữu
             rooms_query = text("SELECT COUNT(*) FROM Rooms WHERE SalerID = :saler_id")
             total_rooms = conn.execute(rooms_query, {"saler_id": saler_id}).scalar() or 0
 
-            # 3. Đếm tổng số đơn đặt phòng (tính tất cả trạng thái để xem độ hot)
             bookings_query = text("""
                 SELECT COUNT(*) FROM Bookings b
                 JOIN Rooms r ON b.RoomID = r.RoomID
@@ -165,7 +163,6 @@ def get_saler_stats(role: Optional[str] = Header(None), user_id: Optional[str] =
             """)
             total_bookings = conn.execute(bookings_query, {"saler_id": saler_id}).scalar() or 0
 
-            # 4. Thống kê số lượng đơn theo từng trạng thái
             status_query = text("""
                 SELECT b.Status, COUNT(*) as Count
                 FROM Bookings b
@@ -176,7 +173,6 @@ def get_saler_stats(role: Optional[str] = Header(None), user_id: Optional[str] =
             status_result = conn.execute(status_query, {"saler_id": saler_id}).mappings().all()
             status_data = {row["Status"]: row["Count"] for row in status_result}
 
-            # 5. Top 3 phòng mang lại doanh thu nhiều nhất cho Saler này
             top_rooms_query = text("""
                 SELECT TOP 3 r.Title, COALESCE(SUM(r.Price), 0) as RoomRevenue, COUNT(b.BookingID) as TotalBookings
                 FROM Bookings b
@@ -192,7 +188,7 @@ def get_saler_stats(role: Optional[str] = Header(None), user_id: Optional[str] =
             "totalRevenue": total_revenue,
             "totalRooms": total_rooms,
             "totalBookings": total_bookings,
-            "statusStats": status_data,
+            "statusStatus": status_data,
             "topRooms": top_rooms
         }
 
