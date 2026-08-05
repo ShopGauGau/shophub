@@ -19,7 +19,11 @@ def create_vnpay_url(data: VNPAYData):
         vnp_HashSecret = "P1FM7B9901PE4SZ0VFEPL2TMCUN3I7DA" 
         
         vnp_Url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-        vnp_ReturnUrl = "http://localhost:5173/payment-result" 
+        
+        # ==========================================
+        # ĐÃ SỬA THÀNH ĐỊA CHỈ NHÀ MỚI TRÊN RENDER:
+        # ==========================================
+        vnp_ReturnUrl = "https://roomhub-web.onrender.com/payment-result" 
 
         vnp_TxnRef = f"{data.BookingID}_{datetime.now().strftime('%H%M%S')}" 
         vnp_OrderInfo = f"Thanh_toan_dat_phong_RoomHub_ma_don_{data.BookingID}" 
