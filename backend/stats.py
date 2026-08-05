@@ -184,11 +184,12 @@ def get_saler_stats(role: Optional[str] = Header(None), user_id: Optional[str] =
             top_rooms_result = conn.execute(top_rooms_query, {"saler_id": saler_id}).mappings().all()
             top_rooms = [dict(row) for row in top_rooms_result]
 
+       # SỬA LẠI KHÚC NÀY NÈ NÍ (Khoảng dòng cuối cùng của file stats.py)
         return {
             "totalRevenue": total_revenue,
             "totalRooms": total_rooms,
             "totalBookings": total_bookings,
-            "statusStatus": status_data,
+            "statusStats": status_data,  # <--- Sửa chữ statusStatus thành statusStats
             "topRooms": top_rooms
         }
 
