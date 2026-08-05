@@ -25,7 +25,10 @@ const DashboardStats = () => {
 
   useEffect(() => {
     setLoading(true);
-    let url = 'http://localhost:8000/api/admin/stats';
+    // ==========================================
+    // ĐÃ THAY LINK RENDER XỊN VÀO ĐÂY NÈ NÍ:
+    // ==========================================
+    let url = 'https://roomhub-api.onrender.com/api/admin/stats';
     if (selectedRoomTitle) {
       url += `?room_title=${encodeURIComponent(selectedRoomTitle)}`;
     }
